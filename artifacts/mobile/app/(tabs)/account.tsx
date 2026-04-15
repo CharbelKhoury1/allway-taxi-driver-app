@@ -2,9 +2,9 @@ import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
   Platform,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -13,6 +13,10 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { AppButton } from "@/components/ui/AppButton";
+import { AppCard } from "@/components/ui/AppCard";
+import { StateView } from "@/components/ui/StateView";
+import { theme } from "@/constants/theme";
 import { useAuth } from "@/contexts/AuthContext";
 import { useShift } from "@/contexts/ShiftContext";
 import { useColors } from "@/hooks/useColors";
@@ -26,7 +30,7 @@ interface EarningsPeriod {
 export default function AccountScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { driver, logout, updateDriver } = useAuth();
+  const { driver, logout } = useAuth();
   const { isOnline, goOffline } = useShift();
   const [earnings, setEarnings] = useState<{
     today: EarningsPeriod;
@@ -43,13 +47,22 @@ export default function AccountScreen() {
   const [newPin, setNewPin] = useState("");
   const [pinError, setPinError] = useState("");
   const [pinLoading, setPinLoading] = useState(false);
+  const [earningsLoading, setEarningsLoading] = useState(true);
+  const [earningsError, setEarningsError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     fetchEarnings();
   }, [driver?.id]);
 
-  const fetchEarnings = async () => {
+  const fetchEarnings = async (isManualRefresh = false) => {
     if (!driver) return;
+    if (isManualRefresh) {
+      setRefreshing(true);
+    } else {
+      setEarningsLoading(true);
+    }
+    setEarningsError(null);
     const now = new Date();
 
     const todayStart = new Date(now);
@@ -61,14 +74,19 @@ export default function AccountScreen() {
     const monthStart = new Date(now);
     monthStart.setDate(monthStart.getDate() - 30);
 
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("trips")
       .select("fare_usd, completed_at")
       .eq("driver_id", driver.id)
       .eq("status", "completed")
       .gte("completed_at", monthStart.toISOString());
 
-    if (!data) return;
+    if (error || !data) {
+      setEarningsError("Failed to load earnings.");
+      setEarningsLoading(false);
+      setRefreshing(false);
+      return;
+    }
 
     const result = {
       today: { amount: 0, trips: 0 },
@@ -94,12 +112,14 @@ export default function AccountScreen() {
     });
 
     setEarnings(result);
+    setEarningsLoading(false);
+    setRefreshing(false);
   };
 
   const handleChangePin = async () => {
     if (!driver) return;
-    if (currentPin !== driver.pwa_pin) {
-      setPinError("Current PIN is incorrect.");
+    if (!/^\d{4,6}$/.test(currentPin)) {
+      setPinError("Current PIN must be 4-6 digits.");
       return;
     }
     if (newPin.length < 4 || newPin.length > 6) {
@@ -118,7 +138,6 @@ export default function AccountScreen() {
     if (error) {
       setPinError("Failed to update PIN.");
     } else {
-      updateDriver({ pwa_pin: newPin });
       setShowPinForm(false);
       setCurrentPin("");
       setNewPin("");
@@ -152,6 +171,13 @@ export default function AccountScreen() {
         { paddingTop: insets.top + 16 + webTopPadding, paddingBottom: 100 },
       ]}
       showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={() => fetchEarnings(true)}
+          tintColor={colors.primary}
+        />
+      }
     >
       <View style={styles.profileHero}>
         <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
@@ -182,41 +208,39 @@ export default function AccountScreen() {
       <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
         Earnings
       </Text>
-      <View style={styles.earningsRow}>
-        {[
-          { label: "Today", data: earnings.today },
-          { label: "7 Days", data: earnings.week },
-          { label: "30 Days", data: earnings.month },
-        ].map((item) => (
-          <View
-            key={item.label}
-            style={[
-              styles.earningsCard,
-              { backgroundColor: colors.card, borderColor: colors.cardBorder },
-            ]}
-          >
-            <Text style={[styles.earningsAmount, { color: colors.primary }]}>
-              ${item.data.amount.toFixed(0)}
-            </Text>
-            <Text style={[styles.earningsTripCount, { color: colors.textSecondary }]}>
-              {item.data.trips} trips
-            </Text>
-            <Text style={[styles.earningsLabel, { color: colors.textTertiary }]}>
-              {item.label}
-            </Text>
-          </View>
-        ))}
-      </View>
+      {earningsLoading ? (
+        <StateView mode="loading" title="Loading earnings..." />
+      ) : earningsError ? (
+        <StateView mode="error" title="Unable to load earnings" description={earningsError} onRetry={() => fetchEarnings()} />
+      ) : (
+        <View style={styles.earningsRow}>
+          {[
+            { label: "Today", data: earnings.today },
+            { label: "7 Days", data: earnings.week },
+            { label: "30 Days", data: earnings.month },
+          ].map((item) => (
+            <AppCard
+              key={item.label}
+              style={styles.earningsCard}
+            >
+              <Text style={[styles.earningsAmount, { color: colors.primary }]}>
+                ${item.data.amount.toFixed(0)}
+              </Text>
+              <Text style={[styles.earningsTripCount, { color: colors.textSecondary }]}>
+                {item.data.trips} trips
+              </Text>
+              <Text style={[styles.earningsLabel, { color: colors.textTertiary }]}>
+                {item.label}
+              </Text>
+            </AppCard>
+          ))}
+        </View>
+      )}
 
       <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
         Vehicle Details
       </Text>
-      <View
-        style={[
-          styles.detailsCard,
-          { backgroundColor: colors.card, borderColor: colors.cardBorder },
-        ]}
-      >
+      <AppCard style={styles.detailsCard}>
         {[
           { label: "Car Model", value: driver.car_model },
           { label: "Plate Number", value: driver.plate },
@@ -235,7 +259,7 @@ export default function AccountScreen() {
             {i < 3 && <View style={[styles.divider, { backgroundColor: colors.border }]} />}
           </View>
         ))}
-      </View>
+      </AppCard>
 
       <Pressable
         onPress={() => setShowPinForm(!showPinForm)}
@@ -258,7 +282,7 @@ export default function AccountScreen() {
       </Pressable>
 
       {showPinForm && (
-        <View style={[styles.pinForm, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
+        <AppCard style={styles.pinForm}>
           <View style={styles.pinInput}>
             <Text style={[styles.pinLabel, { color: colors.textSecondary }]}>Current PIN</Text>
             <TextInput
@@ -288,38 +312,22 @@ export default function AccountScreen() {
           {pinError ? (
             <Text style={[styles.pinError, { color: colors.destructive }]}>{pinError}</Text>
           ) : null}
-          <Pressable
+          <AppButton
+            label="Update PIN"
             onPress={handleChangePin}
+            loading={pinLoading}
             disabled={pinLoading}
-            style={({ pressed }) => [
-              styles.pinSubmit,
-              { backgroundColor: colors.primary, transform: [{ scale: pressed ? 0.97 : 1 }] },
-            ]}
-          >
-            {pinLoading ? (
-              <ActivityIndicator color="#0D0D14" />
-            ) : (
-              <Text style={styles.pinSubmitText}>Update PIN</Text>
-            )}
-          </Pressable>
-        </View>
+            variant="primary"
+          />
+        </AppCard>
       )}
 
-      <Pressable
+      <AppButton
+        label="Log Out"
         onPress={handleLogout}
-        style={({ pressed }) => [
-          styles.logoutButton,
-          {
-            borderColor: colors.destructive,
-            transform: [{ scale: pressed ? 0.97 : 1 }],
-          },
-        ]}
-      >
-        <Feather name="log-out" size={18} color={colors.destructive} />
-        <Text style={[styles.logoutText, { color: colors.destructive }]}>
-          Log Out
-        </Text>
-      </Pressable>
+        icon={<Feather name="log-out" size={18} color={colors.destructive} />}
+        variant="danger"
+      />
     </ScrollView>
   );
 }
@@ -388,8 +396,7 @@ const styles = StyleSheet.create({
   },
   earningsCard: {
     flex: 1,
-    borderRadius: 12,
-    borderWidth: 1,
+    marginBottom: 0,
     padding: 14,
     alignItems: "center",
     gap: 2,
@@ -408,10 +415,8 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   detailsCard: {
-    borderRadius: 12,
-    borderWidth: 1,
-    padding: 16,
     marginBottom: 16,
+    padding: 16,
   },
   detailRow: {
     flexDirection: "row",
@@ -448,10 +453,8 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_500Medium",
   },
   pinForm: {
-    borderRadius: 12,
-    borderWidth: 1,
-    padding: 16,
     marginBottom: 16,
+    padding: 16,
     gap: 12,
   },
   pinInput: {
@@ -473,29 +476,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: "Inter_400Regular",
   },
-  pinSubmit: {
-    height: 44,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  pinSubmitText: {
-    fontSize: 15,
-    fontFamily: "Inter_700Bold",
-    color: "#0D0D14",
-  },
   logoutButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    paddingVertical: 14,
-    borderRadius: 12,
-    borderWidth: 1.5,
     marginTop: 12,
-  },
-  logoutText: {
-    fontSize: 15,
-    fontFamily: "Inter_600SemiBold",
   },
 });

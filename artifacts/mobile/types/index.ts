@@ -12,7 +12,7 @@ export interface Driver {
   lat: number | null;
   lng: number | null;
   last_seen: string;
-  pwa_pin: string;
+  pwa_pin?: string | null;
   created_at: string;
 }
 

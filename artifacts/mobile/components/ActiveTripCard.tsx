@@ -2,13 +2,17 @@ import { Feather } from "@expo/vector-icons";
 import React from "react";
 import {
   Linking,
-  Pressable,
   StyleSheet,
   Text,
   View,
 } from "react-native";
 
+import { AppButton } from "@/components/ui/AppButton";
+import { AppCard } from "@/components/ui/AppCard";
+import { TripRouteBlock } from "@/components/ui/TripRouteBlock";
+import { theme } from "@/constants/theme";
 import { useColors } from "@/hooks/useColors";
+import { formatCurrency } from "@/lib/format";
 import type { Trip } from "@/types";
 
 interface ActiveTripCardProps {
@@ -33,14 +37,14 @@ export function ActiveTripCard({ trip, onComplete }: ActiveTripCardProps) {
   };
 
   return (
-    <View style={[styles.card, { backgroundColor: "rgba(93,202,165,0.12)", borderColor: colors.success }]}>
+    <AppCard style={{ backgroundColor: "rgba(93,202,165,0.12)", borderColor: colors.success }}>
       <View style={styles.headerRow}>
         <View style={[styles.badge, { backgroundColor: colors.success }]}>
           <Text style={styles.badgeText}>ACTIVE TRIP</Text>
         </View>
-        {trip.fare_usd && (
+        {trip.fare_usd != null && (
           <Text style={[styles.fare, { color: colors.primary }]}>
-            ${trip.fare_usd.toFixed(2)}
+            ${formatCurrency(trip.fare_usd)}
           </Text>
         )}
       </View>
@@ -50,67 +54,50 @@ export function ActiveTripCard({ trip, onComplete }: ActiveTripCardProps) {
           {customerName}
         </Text>
         {customerPhone ? (
-          <Pressable onPress={callCustomer} style={styles.phoneButton}>
-            <Feather name="phone" size={18} color={colors.success} />
-          </Pressable>
+          <AppButton
+            label="Call"
+            onPress={callCustomer}
+            icon={<Feather name="phone" size={16} color={colors.success} />}
+            variant="secondary"
+          />
         ) : null}
       </View>
 
       <View style={styles.addresses}>
-        <View style={styles.addressRow}>
-          <View style={[styles.dot, { backgroundColor: colors.success }]} />
-          <Text style={[styles.address, { color: colors.foreground }]} numberOfLines={2}>
-            {trip.pickup_address}
-          </Text>
-        </View>
-        <View style={[styles.line, { borderLeftColor: colors.textTertiary }]} />
-        <View style={styles.addressRow}>
-          <View style={[styles.dot, { backgroundColor: colors.destructive }]} />
-          <Text style={[styles.address, { color: colors.foreground }]} numberOfLines={2}>
-            {trip.dropoff_address}
-          </Text>
-        </View>
+        <TripRouteBlock
+          pickupAddress={trip.pickup_address}
+          dropoffAddress={trip.dropoff_address}
+          numberOfLines={2}
+        />
       </View>
 
       <View style={styles.actions}>
-        <Pressable
+        <AppButton
+          label="Open Maps"
           onPress={openMaps}
-          style={({ pressed }) => [
-            styles.actionButton,
-            { backgroundColor: "rgba(255,255,255,0.08)", transform: [{ scale: pressed ? 0.95 : 1 }] },
-          ]}
-        >
-          <Feather name="map-pin" size={18} color={colors.foreground} />
-          <Text style={[styles.actionText, { color: colors.foreground }]}>Open Maps</Text>
-        </Pressable>
+          icon={<Feather name="map-pin" size={18} color={colors.foreground} />}
+          variant="secondary"
+          flex={1}
+        />
 
-        <Pressable
+        <AppButton
+          label="Complete Trip"
           onPress={onComplete}
-          style={({ pressed }) => [
-            styles.actionButton,
-            { backgroundColor: colors.success, flex: 1, transform: [{ scale: pressed ? 0.95 : 1 }] },
-          ]}
-        >
-          <Feather name="check-circle" size={18} color="#0D0D14" />
-          <Text style={[styles.actionText, { color: "#0D0D14" }]}>Complete Trip</Text>
-        </Pressable>
+          icon={<Feather name="check-circle" size={18} color={colors.primaryForeground} />}
+          variant="success"
+          flex={1}
+        />
       </View>
-    </View>
+    </AppCard>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    borderRadius: 12,
-    borderWidth: 1,
-    padding: 16,
-    marginBottom: 12,
-  },
   headerRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 12,
+    marginBottom: theme.spacing.md,
   },
   badge: {
     paddingHorizontal: 10,
@@ -131,61 +118,17 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 12,
+    marginBottom: theme.spacing.md,
   },
   customerName: {
     fontSize: 18,
     fontFamily: "Inter_600SemiBold",
   },
-  phoneButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(93,202,165,0.15)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
   addresses: {
-    marginBottom: 14,
-  },
-  addressRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 10,
-    paddingVertical: 2,
-  },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginTop: 5,
-  },
-  line: {
-    borderLeftWidth: 1,
-    height: 12,
-    marginLeft: 3.5,
-    borderStyle: "dashed",
-  },
-  address: {
-    fontSize: 14,
-    fontFamily: "Inter_400Regular",
-    flex: 1,
+    marginBottom: theme.spacing.md,
   },
   actions: {
     flexDirection: "row",
-    gap: 10,
-  },
-  actionButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 10,
-  },
-  actionText: {
-    fontSize: 14,
-    fontFamily: "Inter_600SemiBold",
+    gap: theme.spacing.sm,
   },
 });

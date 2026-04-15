@@ -27,6 +27,9 @@ interface ShiftContextType {
   gpsConnected: boolean;
   realtimeConnected: boolean;
   wakeLockActive: boolean;
+  dispatchActionLoading: boolean;
+  lastError: string | null;
+  clearError: () => void;
   goOnline: () => Promise<void>;
   goOffline: () => Promise<void>;
   acceptBroadcastTrip: (tripId: string) => Promise<boolean>;
@@ -45,6 +48,9 @@ const ShiftContext = createContext<ShiftContextType>({
   gpsConnected: false,
   realtimeConnected: false,
   wakeLockActive: false,
+  dispatchActionLoading: false,
+  lastError: null,
+  clearError: () => {},
   goOnline: async () => {},
   goOffline: async () => {},
   acceptBroadcastTrip: async () => false,
@@ -68,6 +74,8 @@ export function ShiftProvider({ children }: { children: React.ReactNode }) {
   const [gpsConnected, setGpsConnected] = useState(false);
   const [realtimeConnected, setRealtimeConnected] = useState(false);
   const [wakeLockActive, setWakeLockActive] = useState(false);
+  const [dispatchActionLoading, setDispatchActionLoading] = useState(false);
+  const [lastError, setLastError] = useState<string | null>(null);
 
   const locationSubRef = useRef<Location.LocationSubscription | null>(null);
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -77,6 +85,7 @@ export function ShiftProvider({ children }: { children: React.ReactNode }) {
     null,
   );
   const pendingDispatchIdRef = useRef<string | null>(null);
+  const dispatchActionLockRef = useRef(false);
   const isOnlineRef = useRef(false);
   const driverRef = useRef(driver);
 
@@ -91,8 +100,19 @@ export function ShiftProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!driver) return;
     setupSelfChannel();
-    return () => {};
+    return () => {
+      if (selfChannelRef.current) {
+        supabase.removeChannel(selfChannelRef.current);
+        selfChannelRef.current = null;
+      }
+    };
   }, [driver?.id]);
+  const clearError = () => setLastError(null);
+
+  const setError = (message: string) => {
+    setLastError(message);
+  };
+
 
   useEffect(() => {
     if (!driver) return;
@@ -156,7 +176,7 @@ export function ShiftProvider({ children }: { children: React.ReactNode }) {
     selfChannelRef.current = channel;
   }, [driver?.id]);
 
-  const startGPS = async () => {
+  const startGPS = async (): Promise<boolean> => {
     try {
       if (Platform.OS === "web") {
         if (navigator.geolocation) {
@@ -182,13 +202,13 @@ export function ShiftProvider({ children }: { children: React.ReactNode }) {
             remove: () => navigator.geolocation.clearWatch(watchId),
           } as Location.LocationSubscription;
         }
-        return;
+        return true;
       }
 
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") {
         setGpsConnected(false);
-        return;
+        return false;
       }
 
       const sub = await Location.watchPositionAsync(
@@ -213,8 +233,10 @@ export function ShiftProvider({ children }: { children: React.ReactNode }) {
         },
       );
       locationSubRef.current = sub;
+      return true;
     } catch {
       setGpsConnected(false);
+      return false;
     }
   };
 
@@ -409,10 +431,11 @@ export function ShiftProvider({ children }: { children: React.ReactNode }) {
 
   const goOnline = async () => {
     if (!driver) return;
+    clearError();
     setIsLocating(true);
 
     try {
-      await supabase
+      const { error: onlineError } = await supabase
         .from("drivers")
         .update({
           online: true,
@@ -420,6 +443,7 @@ export function ShiftProvider({ children }: { children: React.ReactNode }) {
           last_seen: new Date().toISOString(),
         })
         .eq("id", driver.id);
+      if (onlineError) throw new Error("Could not switch online.");
 
       try {
         await activateKeepAwakeAsync("shift");
@@ -428,7 +452,16 @@ export function ShiftProvider({ children }: { children: React.ReactNode }) {
         setWakeLockActive(false);
       }
 
-      await startGPS();
+      const gpsStarted = await startGPS();
+      if (!gpsStarted) {
+        await supabase
+          .from("drivers")
+          .update({ online: false, status: "offline" })
+          .eq("id", driver.id);
+        setIsLocating(false);
+        setError("Location permission is required to go on shift.");
+        return;
+      }
       startHeartbeat();
       setupTripChannels();
       startPolling();
@@ -461,11 +494,13 @@ export function ShiftProvider({ children }: { children: React.ReactNode }) {
       updateDriver({ online: true, status: "available" });
     } catch {
       setIsLocating(false);
+      setError("Failed to go online. Please try again.");
     }
   };
 
   const goOffline = async () => {
     if (!driver) return;
+    clearError();
 
     stopGPS();
     stopHeartbeat();
@@ -477,10 +512,14 @@ export function ShiftProvider({ children }: { children: React.ReactNode }) {
     } catch {}
     setWakeLockActive(false);
 
-    await supabase
+    const { error } = await supabase
       .from("drivers")
       .update({ online: false, status: "offline" })
       .eq("id", driver.id);
+    if (error) {
+      setError("Failed to go offline. Please retry.");
+      return;
+    }
 
     setIsOnline(false);
     setShiftStartTime(null);
@@ -494,8 +533,9 @@ export function ShiftProvider({ children }: { children: React.ReactNode }) {
 
   const acceptBroadcastTrip = async (tripId: string): Promise<boolean> => {
     if (!driver) return false;
+    clearError();
 
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("trips")
       .update({
         driver_id: driver.id,
@@ -506,15 +546,19 @@ export function ShiftProvider({ children }: { children: React.ReactNode }) {
       .is("driver_id", null)
       .select("*, customers(full_name, phone, status)");
 
-    if (!data || data.length === 0) {
+    if (error || !data || data.length === 0) {
       setAvailableTrips((prev) => prev.filter((t) => t.id !== tripId));
+      if (error) setError("Could not accept this trip.");
       return false;
     }
 
-    await supabase
+    const { error: driverStatusError } = await supabase
       .from("drivers")
       .update({ status: "on_trip" })
       .eq("id", driver.id);
+    if (driverStatusError) {
+      setError("Trip accepted but driver status could not be updated.");
+    }
 
     setActiveTrip(data[0]);
     setAvailableTrips([]);
@@ -525,64 +569,104 @@ export function ShiftProvider({ children }: { children: React.ReactNode }) {
 
   const acceptDispatch = async () => {
     if (!driver || !pendingDispatch) return;
+    if (dispatchActionLockRef.current) return;
+    dispatchActionLockRef.current = true;
+    setDispatchActionLoading(true);
+    clearError();
 
-    await supabase
-      .from("trips")
-      .update({
-        status: "accepted",
-        accepted_at: new Date().toISOString(),
-      })
-      .eq("id", pendingDispatch.id);
+    try {
+      const { error: tripError } = await supabase
+        .from("trips")
+        .update({
+          status: "accepted",
+          accepted_at: new Date().toISOString(),
+        })
+        .eq("id", pendingDispatch.id);
+      if (tripError) {
+        setError("Failed to accept dispatch.");
+        return;
+      }
 
-    await supabase
-      .from("drivers")
-      .update({ status: "on_trip" })
-      .eq("id", driver.id);
+      const { error: driverError } = await supabase
+        .from("drivers")
+        .update({ status: "on_trip" })
+        .eq("id", driver.id);
+      if (driverError) {
+        setError("Dispatch accepted but driver status was not updated.");
+      }
 
-    setActiveTrip(pendingDispatch);
-    setPendingDispatch(null);
-    pendingDispatchIdRef.current = null;
-    setAvailableTrips([]);
-    updateDriver({ status: "on_trip" });
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      setActiveTrip(pendingDispatch);
+      setPendingDispatch(null);
+      pendingDispatchIdRef.current = null;
+      setAvailableTrips([]);
+      updateDriver({ status: "on_trip" });
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    } finally {
+      dispatchActionLockRef.current = false;
+      setDispatchActionLoading(false);
+    }
   };
 
   const declineDispatch = async () => {
     if (!driver || !pendingDispatch) return;
+    if (dispatchActionLockRef.current) return;
+    dispatchActionLockRef.current = true;
+    setDispatchActionLoading(true);
+    clearError();
 
-    await supabase
-      .from("trips")
-      .update({
-        driver_id: null,
-        status: "pending",
-      })
-      .eq("id", pendingDispatch.id);
+    try {
+      const { error: tripError } = await supabase
+        .from("trips")
+        .update({
+          driver_id: null,
+          status: "pending",
+        })
+        .eq("id", pendingDispatch.id);
+      if (tripError) {
+        setError("Failed to decline dispatch.");
+        return;
+      }
 
-    await supabase
-      .from("drivers")
-      .update({ status: "available" })
-      .eq("id", driver.id);
+      const { error: driverError } = await supabase
+        .from("drivers")
+        .update({ status: "available" })
+        .eq("id", driver.id);
+      if (driverError) {
+        setError("Dispatch declined but driver status was not updated.");
+      }
 
-    setPendingDispatch(null);
-    pendingDispatchIdRef.current = null;
-    updateDriver({ status: "available" });
+      setPendingDispatch(null);
+      pendingDispatchIdRef.current = null;
+      updateDriver({ status: "available" });
+    } finally {
+      dispatchActionLockRef.current = false;
+      setDispatchActionLoading(false);
+    }
   };
 
   const completeTrip = async () => {
     if (!driver || !activeTrip) return;
+    clearError();
 
-    await supabase
+    const { error: tripError } = await supabase
       .from("trips")
       .update({
         status: "completed",
         completed_at: new Date().toISOString(),
       })
       .eq("id", activeTrip.id);
+    if (tripError) {
+      setError("Failed to complete trip.");
+      return;
+    }
 
-    await supabase
+    const { error: driverError } = await supabase
       .from("drivers")
       .update({ status: "available" })
       .eq("id", driver.id);
+    if (driverError) {
+      setError("Trip completed but driver status was not updated.");
+    }
 
     setActiveTrip(null);
     updateDriver({ status: "available" });
@@ -601,6 +685,9 @@ export function ShiftProvider({ children }: { children: React.ReactNode }) {
         gpsConnected,
         realtimeConnected,
         wakeLockActive,
+        dispatchActionLoading,
+        lastError,
+        clearError,
         goOnline,
         goOffline,
         acceptBroadcastTrip,

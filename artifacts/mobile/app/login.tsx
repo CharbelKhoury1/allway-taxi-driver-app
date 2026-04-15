@@ -2,9 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import {
-  ActivityIndicator,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -13,8 +11,10 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { AppButton } from "@/components/ui/AppButton";
 import { useAuth } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { normalizePhone } from "@/lib/auth";
 
 export default function LoginScreen() {
   const colors = useColors();
@@ -24,19 +24,38 @@ export default function LoginScreen() {
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [attemptCount, setAttemptCount] = useState(0);
+  const [lockedUntil, setLockedUntil] = useState<number | null>(null);
 
   const handleLogin = async () => {
+    const now = Date.now();
+    if (lockedUntil && now < lockedUntil) {
+      const waitSec = Math.ceil((lockedUntil - now) / 1000);
+      setError(`Too many failed attempts. Try again in ${waitSec}s.`);
+      return;
+    }
+
     if (!phone.trim() || !pin.trim()) {
       setError("Please enter your phone number and PIN.");
       return;
     }
     setLoading(true);
     setError("");
-    const err = await login(phone.trim(), pin.trim());
+    const err = await login(normalizePhone(phone.trim()), pin.trim());
     setLoading(false);
     if (err) {
-      setError(err);
+      const nextAttempts = attemptCount + 1;
+      setAttemptCount(nextAttempts);
+      if (nextAttempts >= 5) {
+        const lockMs = 30000;
+        setLockedUntil(Date.now() + lockMs);
+        setError("Too many failed attempts. Please wait 30s.");
+      } else {
+        setError(err);
+      }
     } else {
+      setAttemptCount(0);
+      setLockedUntil(null);
       router.replace("/(tabs)");
     }
   };
@@ -111,27 +130,14 @@ export default function LoginScreen() {
               </View>
             ) : null}
 
-            <Pressable
+            <AppButton
+              label="Sign In"
               onPress={handleLogin}
+              loading={loading}
               disabled={loading}
-              style={({ pressed }) => [
-                styles.loginButton,
-                {
-                  backgroundColor: colors.primary,
-                  opacity: loading ? 0.7 : 1,
-                  transform: [{ scale: pressed ? 0.97 : 1 }],
-                },
-              ]}
-            >
-              {loading ? (
-                <ActivityIndicator color="#0D0D14" />
-              ) : (
-                <View style={styles.loginContent}>
-                  <Text style={styles.loginText}>Sign In</Text>
-                  <Feather name="arrow-right" size={18} color="#0D0D14" />
-                </View>
-              )}
-            </Pressable>
+              icon={<Feather name="arrow-right" size={18} color="#0D0D14" />}
+              variant="primary"
+            />
           </View>
 
           <View style={[styles.helperPanel, { backgroundColor: "rgba(245,184,0,0.08)", borderColor: "rgba(245,184,0,0.18)" }]}> 
@@ -251,23 +257,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: "Inter_400Regular",
     flex: 1,
-  },
-  loginButton: {
-    height: 54,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 4,
-  },
-  loginContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  loginText: {
-    fontSize: 16,
-    fontFamily: "Inter_700Bold",
-    color: "#0D0D14",
   },
   helperPanel: {
     flexDirection: "row",

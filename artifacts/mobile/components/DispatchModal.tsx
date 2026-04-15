@@ -3,7 +3,6 @@ import * as Haptics from "expo-haptics";
 import React, { useEffect, useRef, useState } from "react";
 import {
   Modal,
-  Pressable,
   StyleSheet,
   Text,
   View,
@@ -14,20 +13,32 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 
+import { AppButton } from "@/components/ui/AppButton";
+import { AppCard } from "@/components/ui/AppCard";
+import { TripRouteBlock } from "@/components/ui/TripRouteBlock";
+import { theme } from "@/constants/theme";
 import { useColors } from "@/hooks/useColors";
+import { formatCurrency, formatDistanceKm } from "@/lib/format";
 import type { Trip } from "@/types";
 
 interface DispatchModalProps {
   trip: Trip | null;
-  onAccept: () => void;
-  onDecline: () => void;
+  onAccept: () => Promise<void>;
+  onDecline: () => Promise<void>;
+  isProcessing?: boolean;
 }
 
 const COUNTDOWN_SECONDS = 120;
 
-export function DispatchModal({ trip, onAccept, onDecline }: DispatchModalProps) {
+export function DispatchModal({
+  trip,
+  onAccept,
+  onDecline,
+  isProcessing = false,
+}: DispatchModalProps) {
   const colors = useColors();
   const [secondsLeft, setSecondsLeft] = useState(COUNTDOWN_SECONDS);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const progress = useSharedValue(1);
 
@@ -46,7 +57,9 @@ export function DispatchModal({ trip, onAccept, onDecline }: DispatchModalProps)
       setSecondsLeft((prev) => {
         if (prev <= 1) {
           if (timerRef.current) clearInterval(timerRef.current);
-          onDecline();
+          if (!isSubmitting && !isProcessing) {
+            onDecline();
+          }
           return 0;
         }
         if (prev === 40 || prev === 15) {
@@ -74,6 +87,28 @@ export function DispatchModal({ trip, onAccept, onDecline }: DispatchModalProps)
   if (!trip) return null;
 
   const customerName = trip.customers?.full_name || "Customer";
+  const isBusy = isSubmitting || isProcessing;
+  const distance = formatDistanceKm(trip.distance_km);
+
+  const handleAccept = async () => {
+    if (isBusy) return;
+    setIsSubmitting(true);
+    try {
+      await onAccept();
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDecline = async () => {
+    if (isBusy) return;
+    setIsSubmitting(true);
+    try {
+      await onDecline();
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <Modal visible={!!trip} animationType="slide" transparent={false}>
@@ -100,7 +135,7 @@ export function DispatchModal({ trip, onAccept, onDecline }: DispatchModalProps)
           </View>
         </View>
 
-        <View style={[styles.detailsCard, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
+        <AppCard style={styles.detailsCard}>
           <View style={styles.detailRow}>
             <Feather name="user" size={16} color={colors.textSecondary} />
             <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Customer</Text>
@@ -109,62 +144,49 @@ export function DispatchModal({ trip, onAccept, onDecline }: DispatchModalProps)
 
           <View style={[styles.separator, { backgroundColor: colors.border }]} />
 
-          <View style={styles.addressSection}>
-            <View style={styles.addressRow}>
-              <View style={[styles.dot, { backgroundColor: colors.success }]} />
-              <View style={styles.addressContent}>
-                <Text style={[styles.addressLabel, { color: colors.textSecondary }]}>Pickup</Text>
-                <Text style={[styles.addressText, { color: colors.foreground }]}>{trip.pickup_address}</Text>
-              </View>
-            </View>
-            <View style={[styles.addressLine, { borderLeftColor: colors.textTertiary }]} />
-            <View style={styles.addressRow}>
-              <View style={[styles.dot, { backgroundColor: colors.destructive }]} />
-              <View style={styles.addressContent}>
-                <Text style={[styles.addressLabel, { color: colors.textSecondary }]}>Dropoff</Text>
-                <Text style={[styles.addressText, { color: colors.foreground }]}>{trip.dropoff_address}</Text>
-              </View>
-            </View>
-          </View>
+          <TripRouteBlock
+            pickupAddress={trip.pickup_address}
+            dropoffAddress={trip.dropoff_address}
+            label
+            numberOfLines={3}
+          />
 
           <View style={[styles.separator, { backgroundColor: colors.border }]} />
 
           <View style={styles.statsRow}>
-            {trip.fare_usd && (
+            {trip.fare_usd != null && (
               <View style={styles.stat}>
                 <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Fare</Text>
-                <Text style={[styles.statValue, { color: colors.primary }]}>${trip.fare_usd.toFixed(2)}</Text>
+                <Text style={[styles.statValue, { color: colors.primary }]}>${formatCurrency(trip.fare_usd)}</Text>
               </View>
             )}
-            {trip.distance_km && (
+            {distance ? (
               <View style={styles.stat}>
                 <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Distance</Text>
-                <Text style={[styles.statValue, { color: colors.foreground }]}>{trip.distance_km} km</Text>
+                <Text style={[styles.statValue, { color: colors.foreground }]}>{distance}</Text>
               </View>
-            )}
+            ) : null}
           </View>
-        </View>
+        </AppCard>
 
         <View style={styles.actions}>
-          <Pressable
-            onPress={onDecline}
-            style={({ pressed }) => [
-              styles.declineButton,
-              { borderColor: colors.destructive, transform: [{ scale: pressed ? 0.95 : 1 }] },
-            ]}
-          >
-            <Text style={[styles.declineText, { color: colors.destructive }]}>Decline</Text>
-          </Pressable>
-          <Pressable
-            onPress={onAccept}
-            style={({ pressed }) => [
-              styles.acceptButton,
-              { backgroundColor: colors.success, transform: [{ scale: pressed ? 0.95 : 1 }] },
-            ]}
-          >
-            <Feather name="check" size={20} color="#0D0D14" />
-            <Text style={styles.acceptText}>Accept</Text>
-          </Pressable>
+          <AppButton
+            label="Decline"
+            onPress={handleDecline}
+            variant="danger"
+            disabled={isBusy}
+            loading={isBusy}
+            flex={1}
+          />
+          <AppButton
+            label="Accept"
+            onPress={handleAccept}
+            icon={<Feather name="check" size={20} color={colors.primaryForeground} />}
+            variant="success"
+            disabled={isBusy}
+            loading={isBusy}
+            flex={2}
+          />
         </View>
       </View>
     </Modal>
@@ -207,9 +229,9 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   detailsCard: {
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 20,
+    borderRadius: theme.radius.xl,
+    padding: theme.spacing.xl,
+    marginBottom: 0,
   },
   detailRow: {
     flexDirection: "row",
@@ -230,41 +252,6 @@ const styles = StyleSheet.create({
     height: 1,
     marginVertical: 14,
   },
-  addressSection: {
-    gap: 0,
-  },
-  addressRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 12,
-  },
-  addressLine: {
-    borderLeftWidth: 1,
-    height: 16,
-    marginLeft: 3.5,
-    borderStyle: "dashed",
-  },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginTop: 6,
-  },
-  addressContent: {
-    flex: 1,
-  },
-  addressLabel: {
-    fontSize: 11,
-    fontFamily: "Inter_500Medium",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginBottom: 2,
-  },
-  addressText: {
-    fontSize: 14,
-    fontFamily: "Inter_400Regular",
-    lineHeight: 20,
-  },
   statsRow: {
     flexDirection: "row",
     justifyContent: "space-around",
@@ -283,32 +270,6 @@ const styles = StyleSheet.create({
   },
   actions: {
     flexDirection: "row",
-    gap: 12,
-  },
-  declineButton: {
-    flex: 1,
-    paddingVertical: 16,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  declineText: {
-    fontSize: 16,
-    fontFamily: "Inter_600SemiBold",
-  },
-  acceptButton: {
-    flex: 2,
-    paddingVertical: 16,
-    borderRadius: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-  },
-  acceptText: {
-    fontSize: 16,
-    fontFamily: "Inter_700Bold",
-    color: "#0D0D14",
+    gap: theme.spacing.md,
   },
 });

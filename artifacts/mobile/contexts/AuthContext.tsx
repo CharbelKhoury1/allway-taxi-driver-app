@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { createContext, useContext, useEffect, useState } from "react";
 
+import { maskDriverSessionPin, normalizePhone, stripPhoneToDigits } from "@/lib/auth";
 import type { Driver } from "@/types";
 
 interface AuthContextType {
@@ -43,6 +44,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (phone: string, pin: string): Promise<string | null> => {
     try {
+      const normalizedPhone = normalizePhone(phone);
+      const normalizedDigits = stripPhoneToDigits(normalizedPhone);
+      if (!normalizedDigits || pin.length < 4) {
+        return "Enter a valid phone number and PIN.";
+      }
+
       const { createClient } = await import("@supabase/supabase-js");
       const url = process.env.EXPO_PUBLIC_SUPABASE_URL || "";
       const key = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || "";
@@ -51,17 +58,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { data, error } = await client
         .from("drivers")
         .select("*")
-        .ilike("phone", `%${phone}%`)
         .eq("pwa_pin", pin)
-        .single();
+        .limit(30);
 
-      if (error || !data) {
+      if (error || !data || data.length === 0) {
         return "Incorrect phone number or PIN.";
       }
 
-      const driverData = data as Driver;
+      const matched = data.find((candidate) => {
+        const storedDigits = stripPhoneToDigits(String(candidate.phone || ""));
+        return storedDigits === normalizedDigits;
+      });
+
+      if (!matched) {
+        return "Incorrect phone number or PIN.";
+      }
+
+      const driverData = matched as Driver;
       setDriver(driverData);
-      await AsyncStorage.setItem("driver_session", JSON.stringify(driverData));
+      await AsyncStorage.setItem(
+        "driver_session",
+        JSON.stringify(maskDriverSessionPin(driverData)),
+      );
       await AsyncStorage.setItem("_wasOnline", "false");
       return null;
     } catch {
@@ -79,7 +97,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setDriver((prev) => {
       if (!prev) return prev;
       const updated = { ...prev, ...updates };
-      AsyncStorage.setItem("driver_session", JSON.stringify(updated));
+      AsyncStorage.setItem(
+        "driver_session",
+        JSON.stringify(maskDriverSessionPin(updated)),
+      );
       return updated;
     });
   };

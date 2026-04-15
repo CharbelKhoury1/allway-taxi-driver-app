@@ -3,7 +3,6 @@ import React, { useEffect, useState } from "react";
 import {
   Linking,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -17,12 +16,15 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { AppButton } from "@/components/ui/AppButton";
+import { AppCard } from "@/components/ui/AppCard";
 import { ActiveTripCard } from "@/components/ActiveTripCard";
 import { DispatchModal } from "@/components/DispatchModal";
 import { PowerButton } from "@/components/PowerButton";
 import { StatusPanel } from "@/components/StatusPanel";
 import { TripCard } from "@/components/TripCard";
 import { WeeklyChart } from "@/components/WeeklyChart";
+import { theme } from "@/constants/theme";
 import { useAuth } from "@/contexts/AuthContext";
 import { useShift } from "@/contexts/ShiftContext";
 import { useColors } from "@/hooks/useColors";
@@ -93,6 +95,9 @@ export default function HomeScreen() {
     acceptDispatch,
     declineDispatch,
     completeTrip,
+    dispatchActionLoading,
+    lastError,
+    clearError,
   } = useShift();
 
   const [shiftDisplay, setShiftDisplay] = useState("00:00:00");
@@ -139,11 +144,10 @@ export default function HomeScreen() {
           {getGreeting()}, {firstName}
         </Text>
 
-        <View
+        <AppCard
           style={[
             styles.shiftCard,
             {
-              backgroundColor: colors.card,
               borderColor: isOnline ? colors.success : colors.cardBorder,
             },
           ]}
@@ -180,7 +184,7 @@ export default function HomeScreen() {
             disabled={hasActiveTrip}
             onPress={handlePowerPress}
           />
-        </View>
+        </AppCard>
 
         {isOnline && activeTrip && (
           <ActiveTripCard trip={activeTrip} onComplete={completeTrip} />
@@ -209,39 +213,32 @@ export default function HomeScreen() {
 
         <WeeklyChart />
 
+        {lastError ? (
+          <AppCard style={[styles.errorCard, { borderColor: colors.destructive }]}>
+            <Text style={[styles.errorText, { color: colors.destructive }]}>{lastError}</Text>
+            <AppButton
+              label="Dismiss"
+              onPress={clearError}
+              variant="secondary"
+            />
+          </AppCard>
+        ) : null}
+
         <View style={styles.quickActions}>
-          <Pressable
+          <AppButton
+            label="Call Support"
             onPress={() => Linking.openURL("tel:+96170123456")}
-            style={({ pressed }) => [
-              styles.quickAction,
-              {
-                backgroundColor: colors.card,
-                borderColor: colors.cardBorder,
-                transform: [{ scale: pressed ? 0.97 : 1 }],
-              },
-            ]}
-          >
-            <Feather name="phone-call" size={20} color={colors.primary} />
-            <Text style={[styles.quickActionText, { color: colors.foreground }]}>
-              Call Support
-            </Text>
-          </Pressable>
-          <Pressable
+            icon={<Feather name="phone-call" size={20} color={colors.foreground} />}
+            variant="secondary"
+            flex={1}
+          />
+          <AppButton
+            label="Report Issue"
             onPress={() => Linking.openURL("mailto:support@allwaytaxi.com")}
-            style={({ pressed }) => [
-              styles.quickAction,
-              {
-                backgroundColor: colors.card,
-                borderColor: colors.cardBorder,
-                transform: [{ scale: pressed ? 0.97 : 1 }],
-              },
-            ]}
-          >
-            <Feather name="mail" size={20} color={colors.primary} />
-            <Text style={[styles.quickActionText, { color: colors.foreground }]}>
-              Report Issue
-            </Text>
-          </Pressable>
+            icon={<Feather name="mail" size={20} color={colors.foreground} />}
+            variant="secondary"
+            flex={1}
+          />
         </View>
 
         {isOnline && (
@@ -257,6 +254,7 @@ export default function HomeScreen() {
         trip={pendingDispatch}
         onAccept={acceptDispatch}
         onDecline={declineDispatch}
+        isProcessing={dispatchActionLoading}
       />
     </View>
   );
@@ -281,9 +279,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 20,
+    borderRadius: theme.radius.xl,
+    padding: theme.spacing.xl,
     marginBottom: 16,
   },
   shiftInfo: {
@@ -336,20 +333,13 @@ const styles = StyleSheet.create({
   },
   quickActions: {
     flexDirection: "row",
-    gap: 12,
+    gap: theme.spacing.md,
     marginBottom: 12,
   },
-  quickAction: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    paddingVertical: 14,
-    borderRadius: 12,
-    borderWidth: 1,
+  errorCard: {
+    gap: theme.spacing.sm,
   },
-  quickActionText: {
+  errorText: {
     fontSize: 13,
     fontFamily: "Inter_500Medium",
   },

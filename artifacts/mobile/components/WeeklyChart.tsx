@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
+import { AppCard } from "@/components/ui/AppCard";
+import { StateView } from "@/components/ui/StateView";
+import { theme } from "@/constants/theme";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
@@ -15,6 +18,8 @@ export function WeeklyChart() {
   const colors = useColors();
   const { driver } = useAuth();
   const [days, setDays] = useState<DayEarning[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!driver) return;
@@ -23,6 +28,8 @@ export function WeeklyChart() {
 
   const fetchWeeklyEarnings = async () => {
     if (!driver) return;
+    setIsLoading(true);
+    setError(null);
     const now = new Date();
     const dayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
     const result: DayEarning[] = [];
@@ -46,12 +53,18 @@ export function WeeklyChart() {
     weekAgo.setDate(weekAgo.getDate() - 6);
     weekAgo.setHours(0, 0, 0, 0);
 
-    const { data } = await supabase
+    const { data, error: fetchError } = await supabase
       .from("trips")
       .select("fare_usd, completed_at")
       .eq("driver_id", driver.id)
       .eq("status", "completed")
       .gte("completed_at", weekAgo.toISOString());
+
+    if (fetchError) {
+      setError("Failed to load weekly earnings.");
+      setIsLoading(false);
+      return;
+    }
 
     if (data) {
       data.forEach((trip) => {
@@ -68,13 +81,26 @@ export function WeeklyChart() {
     }
 
     setDays(result);
+    setIsLoading(false);
   };
 
   const maxAmount = Math.max(...days.map((d) => d.amount), 1);
+  const hasData = days.some((d) => d.amount > 0);
 
   return (
-    <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
+    <AppCard>
       <Text style={[styles.title, { color: colors.foreground }]}>Weekly Earnings</Text>
+      {isLoading ? (
+        <StateView mode="loading" title="Loading earnings..." />
+      ) : error ? (
+        <StateView mode="error" title="Unable to load chart" description={error} onRetry={fetchWeeklyEarnings} />
+      ) : !hasData ? (
+        <StateView
+          mode="empty"
+          title="No weekly earnings yet"
+          description="Completed trips will appear here."
+        />
+      ) : (
       <View style={styles.chart}>
         {days.map((day, i) => (
           <View key={i} style={styles.barGroup}>
@@ -104,21 +130,16 @@ export function WeeklyChart() {
           </View>
         ))}
       </View>
-    </View>
+      )}
+    </AppCard>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    borderRadius: 12,
-    borderWidth: 1,
-    padding: 16,
-    marginBottom: 12,
-  },
   title: {
-    fontSize: 15,
+    fontSize: theme.typography.bodyLg,
     fontFamily: "Inter_600SemiBold",
-    marginBottom: 16,
+    marginBottom: theme.spacing.lg,
   },
   chart: {
     flexDirection: "row",

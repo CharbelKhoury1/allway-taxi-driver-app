@@ -1,18 +1,22 @@
-import { Feather } from "@expo/vector-icons";
 import React, { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
   FlatList,
   Platform,
   Pressable,
+  RefreshControl,
   StyleSheet,
   Text,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { AppCard } from "@/components/ui/AppCard";
+import { StateView } from "@/components/ui/StateView";
+import { TripRouteBlock } from "@/components/ui/TripRouteBlock";
+import { theme } from "@/constants/theme";
 import { useAuth } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { formatCurrency, formatDistanceKm } from "@/lib/format";
 import { supabase } from "@/lib/supabase";
 import type { Trip } from "@/types";
 
@@ -52,23 +56,36 @@ export default function HistoryScreen() {
   const { driver } = useAuth();
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<FilterType>("all");
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchTrips();
   }, [driver?.id]);
 
-  const fetchTrips = async () => {
+  const fetchTrips = async (isManualRefresh = false) => {
     if (!driver) return;
-    setLoading(true);
-    const { data } = await supabase
+    if (isManualRefresh) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
+    setError(null);
+
+    const { data, error: fetchError } = await supabase
       .from("trips")
       .select("*, customers(full_name, phone, status)")
       .eq("driver_id", driver.id)
       .order("requested_at", { ascending: false })
       .limit(40);
-    if (data) setTrips(data);
+    if (fetchError) {
+      setError("Failed to load trips.");
+    } else if (data) {
+      setTrips(data);
+    }
     setLoading(false);
+    setRefreshing(false);
   };
 
   const filteredTrips = trips.filter((t) => {
@@ -100,18 +117,18 @@ export default function HistoryScreen() {
         <Text style={[styles.title, { color: colors.foreground }]}>Trip History</Text>
 
         <View style={styles.summaryRow}>
-          <View style={[styles.summaryCard, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
+          <AppCard style={styles.summaryCard}>
             <Text style={[styles.summaryValue, { color: colors.foreground }]}>{totalTrips}</Text>
             <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Total</Text>
-          </View>
-          <View style={[styles.summaryCard, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
+          </AppCard>
+          <AppCard style={styles.summaryCard}>
             <Text style={[styles.summaryValue, { color: colors.warning }]}>{awaitingTrips}</Text>
             <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Awaiting</Text>
-          </View>
-          <View style={[styles.summaryCard, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
+          </AppCard>
+          <AppCard style={styles.summaryCard}>
             <Text style={[styles.summaryValue, { color: colors.success }]}>${totalEarned.toFixed(0)}</Text>
             <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Earned</Text>
-          </View>
+          </AppCard>
         </View>
 
         <View style={styles.filterRow}>
@@ -143,24 +160,36 @@ export default function HistoryScreen() {
       </View>
 
       {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator color={colors.primary} />
-        </View>
+        <StateView mode="loading" title="Loading trips..." />
+      ) : error ? (
+        <StateView
+          mode="error"
+          title="Could not load trip history"
+          description={error}
+          onRetry={() => fetchTrips()}
+        />
       ) : (
         <FlatList
           data={filteredTrips}
           keyExtractor={(item) => item.id}
           scrollEnabled={filteredTrips.length > 0}
           contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100 }}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => fetchTrips(true)}
+              tintColor={colors.primary}
+            />
+          }
           renderItem={({ item }) => (
-            <View style={[styles.tripItem, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
+            <AppCard style={styles.tripItem}>
               <View style={styles.tripHeader}>
                 <Text style={[styles.tripCustomer, { color: colors.foreground }]}>
                   {item.customers?.full_name || "Customer"}
                 </Text>
                 <View style={styles.tripRight}>
                   <Text style={[styles.tripFare, { color: colors.primary }]}>
-                    ${Number(item.fare_usd || 0).toFixed(2)}
+                    ${formatCurrency(item.fare_usd)}
                   </Text>
                   <View style={[styles.statusBadge, { backgroundColor: `${getStatusColor(item.status, colors)}20` }]}>
                     <Text style={[styles.statusText, { color: getStatusColor(item.status, colors) }]}>
@@ -170,38 +199,26 @@ export default function HistoryScreen() {
                 </View>
               </View>
               <View style={styles.tripAddresses}>
-                <View style={styles.tripAddrRow}>
-                  <Feather name="circle" size={8} color={colors.success} />
-                  <Text style={[styles.tripAddr, { color: colors.textSecondary }]} numberOfLines={1}>
-                    {item.pickup_address}
-                  </Text>
-                </View>
-                <View style={styles.tripAddrRow}>
-                  <Feather name="map-pin" size={8} color={colors.destructive} />
-                  <Text style={[styles.tripAddr, { color: colors.textSecondary }]} numberOfLines={1}>
-                    {item.dropoff_address}
-                  </Text>
-                </View>
+                <TripRouteBlock
+                  pickupAddress={item.pickup_address}
+                  dropoffAddress={item.dropoff_address}
+                  numberOfLines={1}
+                />
               </View>
               <View style={styles.tripFooter}>
-                {item.distance_km && (
+                {formatDistanceKm(item.distance_km) ? (
                   <Text style={[styles.tripMeta, { color: colors.textTertiary }]}>
-                    {item.distance_km} km
+                    {formatDistanceKm(item.distance_km)}
                   </Text>
-                )}
+                ) : null}
                 <Text style={[styles.tripMeta, { color: colors.textTertiary }]}>
                   {getTimeAgo(item.requested_at)}
                 </Text>
               </View>
-            </View>
+            </AppCard>
           )}
           ListEmptyComponent={
-            <View style={styles.center}>
-              <Feather name="inbox" size={40} color={colors.textTertiary} />
-              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-                No trips found
-              </Text>
-            </View>
+            <StateView mode="empty" title="No trips found" description="Completed and pending trips appear here." />
           }
         />
       )}
@@ -229,10 +246,10 @@ const styles = StyleSheet.create({
   },
   summaryCard: {
     flex: 1,
-    borderRadius: 10,
-    borderWidth: 1,
+    borderRadius: theme.radius.md,
     padding: 12,
     alignItems: "center",
+    marginBottom: 0,
   },
   summaryValue: {
     fontSize: 20,
@@ -255,20 +272,8 @@ const styles = StyleSheet.create({
   filterText: {
     fontSize: 13,
   },
-  center: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 12,
-    paddingTop: 60,
-  },
-  emptyText: {
-    fontSize: 15,
-    fontFamily: "Inter_400Regular",
-  },
   tripItem: {
-    borderRadius: 12,
-    borderWidth: 1,
+    borderRadius: theme.radius.lg,
     padding: 14,
     marginBottom: 10,
   },
@@ -304,16 +309,6 @@ const styles = StyleSheet.create({
   tripAddresses: {
     gap: 4,
     marginBottom: 8,
-  },
-  tripAddrRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  tripAddr: {
-    fontSize: 13,
-    fontFamily: "Inter_400Regular",
-    flex: 1,
   },
   tripFooter: {
     flexDirection: "row",
