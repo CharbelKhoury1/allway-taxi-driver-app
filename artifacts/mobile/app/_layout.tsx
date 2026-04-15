@@ -6,7 +6,7 @@ import {
   useFonts,
 } from "@expo-google-fonts/inter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Stack, useRouter, useSegments } from "expo-router";
+import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
 import { ActivityIndicator, View } from "react-native";
@@ -17,66 +17,52 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ShiftProvider } from "@/contexts/ShiftContext";
+import LoginScreen from "./login";
 
 SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient();
 
-function AuthGate({ children }: { children: React.ReactNode }) {
-  const { driver, isLoading } = useAuth();
-  const router = useRouter();
-  const segments = useSegments();
-
-  useEffect(() => {
-    if (isLoading) return;
-    const inAuthGroup = segments[0] === "login";
-
-    if (!driver && !inAuthGroup) {
-      router.replace("/login");
-    } else if (driver && inAuthGroup) {
-      router.replace("/(tabs)");
-    }
-  }, [driver, isLoading, segments]);
-
-  if (isLoading) {
-    return (
-      <View
-        style={{
-          flex: 1,
-          alignItems: "center",
-          justifyContent: "center",
-          backgroundColor: "#0D0D14",
-        }}
-      >
-        <ActivityIndicator color="#F5B800" size="large" />
-      </View>
-    );
-  }
-
-  return <>{children}</>;
+function LoadingScreen() {
+  return (
+    <View
+      style={{
+        flex: 1,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: "#0D0D14",
+      }}
+    >
+      <ActivityIndicator color="#F5B800" size="large" />
+    </View>
+  );
 }
 
 function RootNav() {
-  const { driver } = useAuth();
+  const { driver, isLoading } = useAuth();
 
-  const content = (
-    <Stack
-      screenOptions={{
-        headerShown: false,
-        contentStyle: { backgroundColor: "#0D0D14" },
-        animation: "fade",
-      }}
-    >
-      <Stack.Screen name="login" />
-      <Stack.Screen name="(tabs)" />
-    </Stack>
-  );
-
-  if (driver) {
-    return <ShiftProvider>{content}</ShiftProvider>;
+  if (isLoading) {
+    return <LoadingScreen />;
   }
 
-  return content;
+  if (!driver) {
+    return <LoginScreen />;
+  }
+
+  return (
+    <ShiftProvider>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: "#0D0D14" },
+          animation: "fade",
+        }}
+      >
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="login" />
+      </Stack>
+    </ShiftProvider>
+  );
 }
 
 export default function RootLayout() {
@@ -102,9 +88,7 @@ export default function RootLayout() {
           <GestureHandlerRootView style={{ flex: 1, backgroundColor: "#0D0D14" }}>
             <KeyboardProvider>
               <AuthProvider>
-                <AuthGate>
-                  <RootNav />
-                </AuthGate>
+                <RootNav />
               </AuthProvider>
             </KeyboardProvider>
           </GestureHandlerRootView>

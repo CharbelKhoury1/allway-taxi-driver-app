@@ -1,0 +1,59 @@
+The **Allway Taxi Driver PWA** is designed with a high-end, "Elite Dark" aesthetic that mimics a premium native mobile application. Every element is optimized for driver ergonomics and high visibility during night shifts.
+
+---
+
+### **1. Core Visual Language**
+*   **Color Palette**: 
+    *   **Base**: Deep Midnight (`#0D0D14`) for maximum contrast and eye comfort.
+    *   **Primary Accent**: Allway Yellow (`#F5B800`) for primary actions and branding.
+    *   **Success state**: Mint Green (`#5DCAA5`) for online status and completed trips.
+    *   **Alert state**: Soft Red (`#F09595`) for declines or errors.
+*   **Typography**: Uses **Inter** (800-900 weight) for headers to ensure readability at a glance.
+*   **Surfaces**: Uses "Glassmorphism" (semi-transparent backgrounds with `backdrop-filter: blur`) and "Squircle" (rounded rectangle) corners (16px–24px).
+
+---
+
+### **2. Key UI Components**
+
+#### **A. The Power Button (Shift Control)**
+*   **The "Brain"**: A 64x64px circular button that acts as the primary interaction point.
+*   **Animations**: 
+    *   **Online**: "Lucid Breathing" animation (slow scale and glow) to show the app is healthy and tracking.
+    *   **Offline**: "CTA Breathing" (yellow pulse) to encourage the driver to start their shift.
+    *   **Interaction**: A "Burst Ring" effect triggers when tapped to provide tactile feedback.
+
+#### **B. The Radar (Scanning Mode)**
+*   When a driver is online but has no job, the app displays a **Radar Sweep** animation:
+    *   A conic-gradient spinning over concentric rings.
+    *   Randomly pulsing "blip" dots to simulate live matching.
+    *   This provides visual reassurance that the system is actively looking for work.
+
+#### **C. The Trip Pipeline (Order UI)**
+*   **Broadcast Cards**: Elegant mini-cards for unassigned trips showing the Pickup Address, Fare ($), and Distance.
+*   **Incoming Request (Bottom Sheet)**:
+    *   Slides up from the bottom with a 24px radius.
+    *   **Visual Countdown**: A high-visibility bar at the top that drains over 120 seconds.
+    *   **Route Logic**: A vertical connecting line between the Green (Pickup) and Red (Drop-off) dots.
+
+#### **D. Data Visualization**
+*   **Weekly Earnings**: A clean bar chart where each bar represents a day.
+*   **Dynamic Highlighting**: The "Peak" day of the week is automatically highlighted in full Allway Yellow, while others remain semi-transparent.
+
+---
+
+### **3. Navigation & Layout**
+*   **Bottom Navigation Bar**: 
+    *   Sticky at the bottom of the screen with **iOS Safe Area** support.
+    *   Uses icon-and-label layout. 
+    *   Active tabs are indicated by a top accent bar and a subtle "pod" background.
+*   **Tab System**: 
+    *   **Home**: Shift control, Radar, and active tasks.
+    *   **Trips**: 40-trip history list with status-coded badges (Done, Cancelled, On Trip).
+    *   **Account**: Vehicle details, rating stars, and a collapsible PIN management form.
+
+---
+
+### **4. Motion & Feel**
+*   **SlideUp/FadeUp**: All page transitions and modals use a `0.35s` slide-up animation to feel fluid.
+*   **Haptic Visuals**: Buttons use `transform: scale(0.96)` on active clicks to simulate physical button pressing.
+*   **Zero-Flash Splash**: A branded splash screen handles the initial Supabase handshake to prevent UI flickering.
