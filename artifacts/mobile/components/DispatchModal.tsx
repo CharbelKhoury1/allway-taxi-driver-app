@@ -1,8 +1,10 @@
-import { Zap, User, MapPinned, ArrowRight } from "lucide-react-native";
+import { Feather } from "@expo/vector-icons";
+import { SymbolView } from "expo-symbols";
 import * as Haptics from "expo-haptics";
 import React, { useEffect, useRef, useState } from "react";
 import {
   Modal,
+  Platform,
   StyleSheet,
   Text,
   View,
@@ -13,7 +15,6 @@ import Animated, {
   withTiming,
   withRepeat,
   withSequence,
-  interpolate,
 } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
 
@@ -109,7 +110,11 @@ export function DispatchModal({
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
           >
-            <Zap size={32} color="#030303" strokeWidth={2.5} />
+            {Platform.OS === "ios" ? (
+              <SymbolView name="bolt.fill" size={32} tintColor="#030303" />
+            ) : (
+              <Feather name="zap" size={32} color="#030303" />
+            )}
           </LinearGradient>
           <Text style={[styles.title, { color: colors.foreground, fontFamily: theme.font.displayBold }]}>
             Priority Dispatch
@@ -129,7 +134,11 @@ export function DispatchModal({
         <AppCard style={styles.detailsCard}>
           <View style={styles.detailHeader}>
             <View style={styles.row}>
-              <User size={18} color={colors.primary} />
+              {Platform.OS === "ios" ? (
+                <SymbolView name="person.fill" size={18} tintColor={colors.primary} />
+              ) : (
+                <Feather name="user" size={18} color={colors.primary} />
+              )}
               <Text style={[styles.customerName, { color: colors.foreground, fontFamily: theme.font.displayBold }]}>{customerName}</Text>
             </View>
             <View style={[styles.fareBadge, { backgroundColor: "rgba(245, 184, 0, 0.1)" }]}>
@@ -149,7 +158,11 @@ export function DispatchModal({
           />
 
           <View style={styles.distanceBadge}>
-            <MapPinned size={14} color={colors.textTertiary} />
+            {Platform.OS === "ios" ? (
+              <SymbolView name="mappin.and.ellipse" size={14} tintColor={colors.textTertiary} />
+            ) : (
+              <Feather name="map" size={14} color={colors.textTertiary} />
+            )}
             <Text style={[styles.distanceText, { color: colors.textTertiary, fontFamily: theme.font.medium }]}>
               {formatDistanceKm(trip.distance_km)} Estimated Distance
             </Text>
@@ -161,7 +174,13 @@ export function DispatchModal({
           <AppButton
             label="Accept Request"
             onPress={onAccept}
-            icon={<ArrowRight size={20} color="#030303" strokeWidth={2.5} />}
+            icon={
+              Platform.OS === "ios" ? (
+                <SymbolView name="arrow.right" size={20} tintColor="#030303" />
+              ) : (
+                <Feather name="arrow-right" size={20} color="#030303" />
+              )
+            }
             variant="primary"
             disabled={isBusy}
             loading={isBusy}

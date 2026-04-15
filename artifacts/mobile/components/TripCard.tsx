@@ -1,6 +1,7 @@
-import { ChevronRight, Check } from "lucide-react-native";
+import { Feather } from "@expo/vector-icons";
+import { SymbolView } from "expo-symbols";
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Platform, StyleSheet, Text, View } from "react-native";
 
 import { AppButton } from "@/components/ui/AppButton";
 import { AppCard } from "@/components/ui/AppCard";
@@ -28,13 +29,17 @@ export function TripCard({ trip, onAccept }: TripCardProps) {
           </Text>
           {distance && (
             <View style={[styles.distanceBadge, { backgroundColor: "rgba(255, 255, 255, 0.05)" }]}>
-              <Text style={[styles.distance, { color: colors.textSecondary, fontFamily: theme.font.medium }]}>
-                {distance}
+              <Text style={[styles.distance, { color: colors.textSecondary, fontFamily: theme.font.displayBold }]}>
+                {distance.toUpperCase()}
               </Text>
             </View>
           )}
         </View>
-        <ChevronRight size={20} color={colors.textTertiary} />
+        {Platform.OS === "ios" ? (
+          <SymbolView name="chevron.right" size={16} tintColor={colors.textTertiary} />
+        ) : (
+          <Feather name="chevron-right" size={16} color={colors.textTertiary} />
+        )}
       </View>
 
       <View style={styles.addresses}>
@@ -48,8 +53,15 @@ export function TripCard({ trip, onAccept }: TripCardProps) {
       <AppButton
         label="Accept"
         onPress={() => onAccept(trip.id)}
-        icon={<Check size={18} color="#030303" strokeWidth={3} />}
+        icon={
+          Platform.OS === "ios" ? (
+            <SymbolView name="checkmark" size={18} tintColor="#030303" />
+          ) : (
+            <Feather name="check" size={18} color="#030303" />
+          )
+        }
         variant="primary"
+        height={54}
       />
     </AppCard>
   );
@@ -58,14 +70,17 @@ export function TripCard({ trip, onAccept }: TripCardProps) {
 const styles = StyleSheet.create({
   card: {
     marginBottom: 16,
-    padding: 20,
-    borderRadius: 24,
+    padding: 24,
+    borderRadius: 28,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.04)",
+    ...theme.shadows.soft,
   },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: 20,
   },
   fareContainer: {
     flexDirection: "row",
@@ -73,18 +88,19 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   fare: {
-    fontSize: 24,
-    letterSpacing: -0.5,
+    fontSize: 26,
+    letterSpacing: -1,
   },
   distanceBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     borderRadius: 8,
   },
   distance: {
-    fontSize: 12,
+    fontSize: 10,
+    letterSpacing: 0.5,
   },
   addresses: {
-    marginBottom: 20,
+    marginBottom: 24,
   },
 });

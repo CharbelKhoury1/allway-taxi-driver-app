@@ -1,10 +1,13 @@
-import { Phone, Navigation, Check } from "lucide-react-native";
+import { Feather } from "@expo/vector-icons";
+import { SymbolView } from "expo-symbols";
 import React from "react";
 import {
   Linking,
+  Platform,
   StyleSheet,
   Text,
   View,
+  Pressable,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 
@@ -23,7 +26,7 @@ interface ActiveTripCardProps {
 
 export function ActiveTripCard({ trip, onComplete }: ActiveTripCardProps) {
   const colors = useColors();
-  const customerName = trip.customers?.full_name || "Guest Passenger";
+  const customerName = trip.customers?.full_name || "GUEST PASSENGER";
   const customerPhone = trip.customers?.phone || "";
 
   const openMaps = () => {
@@ -38,7 +41,7 @@ export function ActiveTripCard({ trip, onComplete }: ActiveTripCardProps) {
   };
 
   return (
-    <AppCard style={{ backgroundColor: "rgba(93, 202, 165, 0.05)", borderColor: "rgba(93, 202, 165, 0.2)", borderRadius: 28, padding: 24 }}>
+    <AppCard style={[styles.card, { backgroundColor: "rgba(93, 202, 165, 0.04)", borderColor: "rgba(93, 202, 165, 0.15)" }]}>
       <View style={styles.headerRow}>
         <LinearGradient
           colors={[colors.success, "#4CAF50"]}
@@ -47,7 +50,7 @@ export function ActiveTripCard({ trip, onComplete }: ActiveTripCardProps) {
           end={{ x: 1, y: 0 }}
         >
           <Text style={[styles.badgeText, { color: "#030303", fontFamily: theme.font.displayBold }]}>
-            MISSION ACTIVE
+            ACTIVE MISSION
           </Text>
         </LinearGradient>
         {trip.fare_usd != null && (
@@ -57,49 +60,69 @@ export function ActiveTripCard({ trip, onComplete }: ActiveTripCardProps) {
         )}
       </View>
 
-      <View style={styles.customerRow}>
-        <View style={styles.customerInfo}>
-          <Text style={[styles.customerLabel, { color: colors.textTertiary, fontFamily: theme.font.displayBold }]}>PASSENGER</Text>
-          <Text style={[styles.customerName, { color: colors.foreground, fontFamily: theme.font.displayBold }]}>
-            {customerName}
-          </Text>
+      <View style={styles.content}>
+        <View style={styles.customerRow}>
+          <View style={styles.customerInfo}>
+            <Text style={[styles.customerLabel, { color: colors.textTertiary, fontFamily: theme.font.displayBold }]}>PASSENGER</Text>
+            <Text style={[styles.customerName, { color: colors.foreground, fontFamily: theme.font.displayBold }]}>
+              {customerName.toUpperCase()}
+            </Text>
+          </View>
+          {customerPhone ? (
+            <Pressable
+              onPress={callCustomer}
+              style={({ pressed }) => [styles.callButton, { backgroundColor: "rgba(93, 202, 165, 0.1)", opacity: pressed ? 0.7 : 1 }]}
+            >
+              {Platform.OS === "ios" ? (
+                <SymbolView name="phone.fill" size={18} tintColor={colors.success} />
+              ) : (
+                <Feather name="phone" size={18} color={colors.success} />
+              )}
+            </Pressable>
+          ) : null}
         </View>
-        {customerPhone ? (
-          <AppButton
-            label="Call"
-            onPress={callCustomer}
-            icon={<Phone size={16} color={colors.success} />}
-            variant="ghost"
+
+        <View style={styles.divider} />
+
+        <View style={styles.addresses}>
+           <Text style={[styles.addressHeader, { color: colors.textTertiary, fontFamily: theme.font.displayBold }]}>ROUTE PLAN</Text>
+           <TripRouteBlock
+            pickupAddress={trip.pickup_address}
+            dropoffAddress={trip.dropoff_address}
+            numberOfLines={2}
           />
-        ) : null}
-      </View>
-
-      <View style={styles.divider} />
-
-      <View style={styles.addresses}>
-        <TripRouteBlock
-          pickupAddress={trip.pickup_address}
-          dropoffAddress={trip.dropoff_address}
-          numberOfLines={2}
-          label
-        />
+        </View>
       </View>
 
       <View style={styles.actions}>
         <AppButton
           label="Navigator"
           onPress={openMaps}
-          icon={<Navigation size={18} color={colors.foreground} />}
+          icon={
+            Platform.OS === "ios" ? (
+              <SymbolView name="location.fill" size={18} tintColor={colors.foreground} />
+            ) : (
+              <Feather name="navigation" size={18} color={colors.foreground} />
+            )
+          }
           variant="secondary"
           flex={1}
+          height={60}
         />
 
         <AppButton
           label="Complete"
           onPress={onComplete}
-          icon={<Check size={18} color="#030303" strokeWidth={3} />}
+          icon={
+            Platform.OS === "ios" ? (
+              <SymbolView name="checkmark.circle.fill" size={18} tintColor="#030303" />
+            ) : (
+              <Feather name="check" size={18} color="#030303" />
+            )
+          }
           variant="success"
           flex={1}
+          height={60}
         />
       </View>
     </AppCard>
@@ -107,24 +130,33 @@ export function ActiveTripCard({ trip, onComplete }: ActiveTripCardProps) {
 }
 
 const styles = StyleSheet.create({
+  card: {
+    padding: 28,
+    borderRadius: 32,
+    borderWidth: 1,
+    ...theme.shadows.soft,
+  },
   headerRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 20,
+    marginBottom: 28,
   },
   badge: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: 10,
   },
   badgeText: {
-    fontSize: 10,
+    fontSize: 9,
     letterSpacing: 2,
   },
   fare: {
-    fontSize: 24,
+    fontSize: 28,
     letterSpacing: -1,
+  },
+  content: {
+    marginBottom: 28,
   },
   customerRow: {
     flexDirection: "row",
@@ -133,14 +165,24 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   customerInfo: {
+    flex: 1,
     gap: 4,
   },
   customerLabel: {
     fontSize: 9,
     letterSpacing: 1.5,
+    opacity: 0.6,
   },
   customerName: {
-    fontSize: 20,
+    fontSize: 22,
+    letterSpacing: -0.5,
+  },
+  callButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
   },
   divider: {
     height: 1,
@@ -148,7 +190,12 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   addresses: {
-    marginBottom: 24,
+    gap: 12,
+  },
+  addressHeader: {
+    fontSize: 9,
+    letterSpacing: 1.5,
+    opacity: 0.6,
   },
   actions: {
     flexDirection: "row",

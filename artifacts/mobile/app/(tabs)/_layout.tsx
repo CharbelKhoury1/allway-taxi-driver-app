@@ -1,6 +1,6 @@
 import { BlurView } from "expo-blur";
 import { Tabs } from "expo-router";
-import { LayoutGrid, ClipboardList, UserRound } from "lucide-react-native";
+import { Feather } from "@expo/vector-icons";
 import { SymbolView } from "expo-symbols";
 import React from "react";
 import { Platform, StyleSheet, View } from "react-native";
@@ -63,7 +63,7 @@ export default function TabLayout() {
                 tintColor={color}
               />
             ) : (
-              <LayoutGrid size={22} color={color} strokeWidth={focused ? 2.5 : 2} />
+              <Feather name="grid" size={22} color={color} />
             )
           ),
         }}
@@ -80,7 +80,7 @@ export default function TabLayout() {
                 tintColor={color}
               />
             ) : (
-              <ClipboardList size={22} color={color} strokeWidth={focused ? 2.5 : 2} />
+              <Feather name="list" size={22} color={color} />
             )
           ),
         }}
@@ -97,7 +97,7 @@ export default function TabLayout() {
                 tintColor={color}
               />
             ) : (
-              <UserRound size={22} color={color} strokeWidth={focused ? 2.5 : 2} />
+              <Feather name="user" size={22} color={color} />
             )
           ),
         }}

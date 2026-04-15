@@ -1,5 +1,6 @@
 export const theme = {
   spacing: {
+    screen: 24,
     xs: 4,
     sm: 8,
     md: 12,
@@ -10,30 +11,46 @@ export const theme = {
   radius: {
     sm: 10,
     md: 14,
-    lg: 18,
-    xl: 24,
+    lg: 20,
+    xl: 28,
     pill: 999,
   },
   typography: {
-    caption: 12,
-    small: 13,
-    body: 15,
+    caption: 11,
+    small: 12,
+    body: 14,
     bodyLg: 16,
-    title: 20,
-    heading: 28,
+    title: 22,
+    heading: 32,
   },
   lineHeight: {
-    body: 22,
+    body: 20,
   },
   font: {
     regular: "Inter_400Regular",
     medium: "Inter_500Medium",
     semibold: "Inter_600SemiBold",
     bold: "Inter_700Bold",
-    displayRegular: "PlusJakartaSans_400Regular",
-    displayMedium: "PlusJakartaSans_500Medium",
-    displaySemiBold: "PlusJakartaSans_600SemiBold",
-    displayBold: "PlusJakartaSans_700Bold",
+    displayRegular: "Inter_400Regular",
+    displayMedium: "Inter_500Medium",
+    displaySemiBold: "Inter_600SemiBold",
+    displayBold: "Inter_700Bold",
+  },
+  shadows: {
+    soft: {
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 0.3,
+      shadowRadius: 12,
+      elevation: 8,
+    },
+    intense: {
+      shadowColor: "#F5B800",
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.15,
+      shadowRadius: 20,
+      elevation: 10,
+    },
   },
 } as const;
 

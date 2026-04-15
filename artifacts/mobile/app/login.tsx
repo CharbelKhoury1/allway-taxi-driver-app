@@ -1,4 +1,5 @@
 import { Feather } from "@expo/vector-icons";
+import { SymbolView } from "expo-symbols";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import {
@@ -8,10 +9,15 @@ import {
   Text,
   TextInput,
   View,
+  Image,
+  KeyboardAvoidingView,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { LinearGradient } from "expo-linear-gradient";
+import { BlurView } from "expo-blur";
 
 import { AppButton } from "@/components/ui/AppButton";
+import { theme } from "@/constants/theme";
 import { useAuth } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { normalizePhone } from "@/lib/auth";
@@ -31,12 +37,12 @@ export default function LoginScreen() {
     const now = Date.now();
     if (lockedUntil && now < lockedUntil) {
       const waitSec = Math.ceil((lockedUntil - now) / 1000);
-      setError(`Too many failed attempts. Try again in ${waitSec}s.`);
+      setError(`Access locked. Retry in ${waitSec}s.`);
       return;
     }
 
     if (!phone.trim() || !pin.trim()) {
-      setError("Please enter your phone number and PIN.");
+      setError("Credentials required.");
       return;
     }
     setLoading(true);
@@ -49,7 +55,7 @@ export default function LoginScreen() {
       if (nextAttempts >= 5) {
         const lockMs = 30000;
         setLockedUntil(Date.now() + lockMs);
-        setError("Too many failed attempts. Please wait 30s.");
+        setError("Too many fails. Cooldown: 30s.");
       } else {
         setError(err);
       }
@@ -61,217 +67,220 @@ export default function LoginScreen() {
   };
 
   return (
-    <View style={[styles.screen, { backgroundColor: colors.background }]}>
-      <View style={[styles.glowTop, { backgroundColor: colors.primary }]} />
-      <View style={[styles.glowBottom, { backgroundColor: colors.success }]} />
+    <KeyboardAvoidingView 
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      style={[styles.screen, { backgroundColor: colors.background }]}
+    >
+      <LinearGradient
+        colors={["#0D0D14", "#030303", "#000000"]}
+        style={StyleSheet.absoluteFill}
+      />
+      
+      {/* Decorative Glow Elements */}
+      <View style={[styles.glow, { top: -50, right: -50, backgroundColor: colors.primary, opacity: 0.15 }]} />
+      <View style={[styles.glow, { bottom: -100, left: -50, backgroundColor: "#1e3a8a", opacity: 0.1 }]} />
+
       <ScrollView
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[
           styles.container,
           {
-            paddingTop: insets.top + (Platform.OS === "web" ? 44 : 20),
-            paddingBottom: insets.bottom + 28,
+            paddingTop: insets.top + (Platform.OS === "ios" ? 80 : 40),
+            paddingBottom: insets.bottom + 40,
           },
         ]}
       >
-        <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
-          <View style={styles.logoSection}>
-            <View style={[styles.logoHalo, { borderColor: `${colors.primary}55` }]}>
-              <View style={[styles.logoCircle, { backgroundColor: colors.primary }]}>
-                <Feather name="truck" size={30} color="#0D0D14" />
-              </View>
-            </View>
-            <Text style={[styles.appName, { color: colors.primary }]}>Allway</Text>
-            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Driver App</Text>
+        <View style={styles.header}>
+          <View style={styles.logoWrapper}>
+            <Image 
+              source={require("@/assets/images/logo.png")} 
+              style={styles.logo}
+              resizeMode="contain"
+            />
           </View>
+          <Text style={[styles.appName, { color: colors.foreground, fontFamily: theme.font.displayBold }]}>
+            ALLWAY <Text style={{ color: colors.primary }}>TAXI</Text>
+          </Text>
+          <Text style={[styles.tagline, { color: colors.textTertiary, fontFamily: theme.font.displayBold }]}>
+            SECURE DRIVER GATEWAY
+          </Text>
+        </View>
 
+        <BlurView intensity={25} tint="dark" style={[styles.glassCard, { borderColor: "rgba(255, 255, 255, 0.1)" }]}>
           <View style={styles.form}>
             <View style={styles.inputGroup}>
-              <Text style={[styles.label, { color: colors.textSecondary }]}>Phone Number</Text>
-              <View style={[styles.inputContainer, { backgroundColor: colors.input, borderColor: colors.border }]}> 
-                <Feather name="phone" size={18} color={colors.textTertiary} />
+              <Text style={[styles.label, { color: colors.textTertiary, fontFamily: theme.font.displayBold }]}>IDENTIFICATION</Text>
+              <View style={[styles.inputWrapper, { backgroundColor: "rgba(255, 255, 255, 0.04)", borderColor: "rgba(255, 255, 255, 0.06)" }]}>
+                {Platform.OS === "ios" ? (
+                  <SymbolView name="phone.fill" size={18} tintColor={colors.textTertiary} />
+                ) : (
+                  <Feather name="phone" size={18} color={colors.textTertiary} />
+                )}
                 <TextInput
-                  style={[styles.input, { color: colors.foreground }]}
-                  placeholder="Enter your phone number"
-                  placeholderTextColor={colors.textTertiary}
+                  style={[styles.input, { color: colors.foreground, fontFamily: theme.font.medium }]}
+                  placeholder="Phone Number"
+                  placeholderTextColor="rgba(255, 255, 255, 0.2)"
                   keyboardType="phone-pad"
                   value={phone}
                   onChangeText={setPhone}
                   autoCapitalize="none"
-                  returnKeyType="next"
                 />
               </View>
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={[styles.label, { color: colors.textSecondary }]}>PIN</Text>
-              <View style={[styles.inputContainer, { backgroundColor: colors.input, borderColor: colors.border }]}> 
-                <Feather name="lock" size={18} color={colors.textTertiary} />
+              <Text style={[styles.label, { color: colors.textTertiary, fontFamily: theme.font.displayBold }]}>SECURITY PIN</Text>
+              <View style={[styles.inputWrapper, { backgroundColor: "rgba(255, 255, 255, 0.04)", borderColor: "rgba(255, 255, 255, 0.06)" }]}>
+                {Platform.OS === "ios" ? (
+                  <SymbolView name="lock.fill" size={18} tintColor={colors.textTertiary} />
+                ) : (
+                  <Feather name="lock" size={18} color={colors.textTertiary} />
+                )}
                 <TextInput
-                  style={[styles.input, { color: colors.foreground }]}
-                  placeholder="Enter your PIN"
-                  placeholderTextColor={colors.textTertiary}
+                  style={[styles.input, { color: colors.foreground, fontFamily: theme.font.medium }]}
+                  placeholder="6-Digit PIN"
+                  placeholderTextColor="rgba(255, 255, 255, 0.2)"
                   keyboardType="number-pad"
                   secureTextEntry
                   maxLength={6}
                   value={pin}
                   onChangeText={setPin}
                   onSubmitEditing={handleLogin}
-                  returnKeyType="done"
                 />
               </View>
             </View>
 
             {error ? (
-              <View style={[styles.errorBox, { backgroundColor: "rgba(240,149,149,0.12)", borderColor: "rgba(240,149,149,0.28)" }]}> 
-                <Feather name="alert-circle" size={16} color={colors.destructive} />
-                <Text style={[styles.errorText, { color: colors.destructive }]}>{error}</Text>
+              <View style={[styles.errorBox, { backgroundColor: "rgba(240, 82, 82, 0.05)", borderColor: "rgba(240, 82, 82, 0.15)" }]}>
+                {Platform.OS === "ios" ? (
+                  <SymbolView name="exclamationmark.triangle.fill" size={14} tintColor={colors.destructive} />
+                ) : (
+                  <Feather name="alert-circle" size={14} color={colors.destructive} />
+                )}
+                <Text style={[styles.errorText, { color: colors.destructive, fontFamily: theme.font.medium }]}>{error}</Text>
               </View>
             ) : null}
 
-            <AppButton
-              label="Sign In"
-              onPress={handleLogin}
-              loading={loading}
-              disabled={loading}
-              icon={<Feather name="arrow-right" size={18} color="#0D0D14" />}
-              variant="primary"
-            />
+            <View style={styles.actionContainer}>
+              <AppButton
+                label="Sign In"
+                onPress={handleLogin}
+                loading={loading}
+                disabled={loading}
+                icon={
+                  Platform.OS === "ios" ? (
+                    <SymbolView name="arrow.right" size={18} tintColor="#030303" />
+                  ) : (
+                    <Feather name="arrow-right" size={18} color="#030303" />
+                  )
+                }
+                variant="primary"
+              />
+            </View>
           </View>
+        </BlurView>
 
-          <View style={[styles.helperPanel, { backgroundColor: "rgba(245,184,0,0.08)", borderColor: "rgba(245,184,0,0.18)" }]}> 
-            <Feather name="smartphone" size={15} color={colors.primary} />
-            <Text style={[styles.hint, { color: colors.textSecondary }]}>Add to Home Screen for the best experience</Text>
-          </View>
+        <View style={styles.footer}>
+          <Text style={[styles.footerText, { color: colors.textTertiary, fontFamily: theme.font.medium }]}>
+            Secure Hub v4.8 • Regional Access Only
+          </Text>
         </View>
       </ScrollView>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    overflow: "hidden",
   },
-  glowTop: {
+  glow: {
     position: "absolute",
-    top: -120,
-    right: -120,
-    width: 260,
-    height: 260,
-    borderRadius: 130,
-    opacity: 0.18,
-  },
-  glowBottom: {
-    position: "absolute",
-    bottom: -150,
-    left: -130,
     width: 300,
     height: 300,
     borderRadius: 150,
-    opacity: 0.09,
   },
   container: {
-    flexGrow: 1,
-    justifyContent: "center",
+    paddingHorizontal: 30,
     alignItems: "center",
-    paddingHorizontal: 22,
   },
-  card: {
-    width: "100%",
-    maxWidth: 430,
-    borderRadius: 28,
-    borderWidth: 1,
-    paddingHorizontal: 22,
-    paddingTop: 26,
-    paddingBottom: 20,
-    gap: 22,
-  },
-  logoSection: {
+  header: {
     alignItems: "center",
-    gap: 6,
+    marginBottom: 40,
   },
-  logoHalo: {
-    width: 82,
-    height: 82,
-    borderRadius: 41,
-    borderWidth: 1,
+  logoWrapper: {
+    width: 80,
+    height: 80,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 6,
+    marginBottom: 24,
   },
-  logoCircle: {
-    width: 62,
-    height: 62,
-    borderRadius: 31,
-    alignItems: "center",
-    justifyContent: "center",
+  logo: {
+    width: 80,
+    height: 80,
   },
   appName: {
-    fontSize: 34,
-    fontFamily: "Inter_700Bold",
-    letterSpacing: -0.8,
+    fontSize: 28,
+    letterSpacing: 2,
+    marginBottom: 8,
   },
-  subtitle: {
-    fontSize: 15,
-    fontFamily: "Inter_400Regular",
+  tagline: {
+    fontSize: 10,
+    letterSpacing: 3,
+    opacity: 0.6,
+  },
+  glassCard: {
+    width: "100%",
+    borderRadius: 32,
+    borderWidth: 1,
+    overflow: "hidden",
+    padding: 30,
   },
   form: {
-    gap: 14,
+    gap: 24,
   },
   inputGroup: {
-    gap: 7,
+    gap: 12,
   },
   label: {
-    fontSize: 13,
-    fontFamily: "Inter_600SemiBold",
-    letterSpacing: 0.1,
+    fontSize: 10,
+    letterSpacing: 1.5,
+    opacity: 0.8,
   },
-  inputContainer: {
+  inputWrapper: {
     flexDirection: "row",
     alignItems: "center",
-    borderRadius: 15,
+    height: 60,
+    borderRadius: 18,
     borderWidth: 1,
-    paddingHorizontal: 15,
-    height: 54,
-    gap: 10,
+    paddingHorizontal: 20,
+    gap: 12,
   },
   input: {
     flex: 1,
-    fontSize: 16,
-    fontFamily: "Inter_400Regular",
-    height: "100%",
+    fontSize: 15,
   },
   errorBox: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 11,
-    borderRadius: 12,
+    gap: 10,
+    padding: 16,
+    borderRadius: 16,
     borderWidth: 1,
   },
   errorText: {
     fontSize: 13,
-    fontFamily: "Inter_400Regular",
-    flex: 1,
   },
-  helperPanel: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    borderWidth: 1,
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 11,
+  actionContainer: {
+    marginTop: 8,
   },
-  hint: {
-    fontSize: 12,
-    fontFamily: "Inter_400Regular",
-    textAlign: "center",
-    flexShrink: 1,
+  footer: {
+    marginTop: 40,
+    opacity: 0.4,
+  },
+  footerText: {
+    fontSize: 10,
+    letterSpacing: 0.5,
   },
 });

@@ -16,40 +16,38 @@ export function GlassHeader() {
 
   return (
     <View style={[styles.wrapper, { paddingTop: insets.top }]}>
-      <BlurView intensity={30} tint="dark" style={[styles.container, { borderColor: "rgba(255, 255, 255, 0.12)" }]}>
+      <BlurView intensity={45} tint="dark" style={[styles.container, { borderColor: "rgba(255, 255, 255, 0.08)", ...theme.shadows.soft }]}>
         <View style={styles.content}>
           <View style={styles.left}>
-            <View style={[styles.avatarContainer, { borderColor: colors.cardBorder }]}>
+            <View style={[styles.avatarContainer, { borderColor: "rgba(255, 255, 255, 0.1)" }]}>
               {driver?.photo_url ? (
                 <Image source={{ uri: driver.photo_url }} style={styles.avatar} />
               ) : (
-                <View style={[styles.avatarPlaceholder, { backgroundColor: "rgba(255, 255, 255, 0.05)" }]}>
-                  {Platform.OS === "ios" ? (
-                    <SymbolView name="person.fill" size={20} tintColor={colors.textSecondary} />
-                  ) : (
-                    <Feather name="user" size={20} color={colors.textSecondary} />
-                  )}
-                </View>
+                <Image 
+                  source={require("@/assets/images/logo.png")} 
+                  style={styles.logoAvatar}
+                  resizeMode="contain"
+                />
               )}
             </View>
-            <View>
+            <View style={styles.driverInfo}>
               <Text style={[styles.title, { color: colors.foreground, fontFamily: theme.font.displayBold }]}>
-                {driver?.full_name?.split(" ")[0] || "Driver Account"}
+                {driver?.full_name?.split(" ")[0] || "ELITE DRIVER"}
               </Text>
               <View style={styles.row}>
                 {Platform.OS === "ios" ? (
-                  <SymbolView name="star.fill" size={12} tintColor={colors.primary} />
+                  <SymbolView name="star.fill" size={10} tintColor={colors.primary} />
                 ) : (
-                  <Feather name="star" size={12} color={colors.primary} />
+                  <Feather name="star" size={10} color={colors.primary} />
                 )}
-                <Text style={[styles.subtitle, { color: colors.textSecondary, fontFamily: theme.font.medium }]}>
-                   {driver?.rating?.toFixed(2) || "5.00"} • PRO
+                <Text style={[styles.subtitle, { color: colors.textTertiary, fontFamily: theme.font.displayBold }]}>
+                   {driver?.rating?.toFixed(2) || "4.98"} • ALLWAY Hub
                 </Text>
               </View>
             </View>
           </View>
           
-          <View style={[styles.stats, { backgroundColor: "rgba(255, 255, 255, 0.08)" }]}>
+          <View style={[styles.stats, { backgroundColor: "rgba(255, 255, 255, 0.05)" }]}>
             {Platform.OS === "ios" ? (
               <SymbolView name="chart.line.uptrend.xyaxis" size={14} tintColor={colors.success} />
             ) : (
@@ -74,10 +72,10 @@ const styles = StyleSheet.create({
     zIndex: 100,
   },
   container: {
-    height: 72,
+    height: 88,
     marginHorizontal: 16,
     marginTop: 10,
-    borderRadius: 20,
+    borderRadius: 24,
     overflow: "hidden",
     borderWidth: 1,
   },
@@ -86,56 +84,59 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
   },
   left: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: 14,
   },
   avatarContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     borderWidth: 1,
     padding: 2,
-    backgroundColor: "rgba(255, 255, 255, 0.03)",
+    backgroundColor: "rgba(255, 255, 255, 0.02)",
+    alignItems: "center",
+    justifyContent: "center",
   },
   avatar: {
     width: "100%",
     height: "100%",
-    borderRadius: 20,
+    borderRadius: 24,
   },
-  avatarPlaceholder: {
-    width: "100%",
-    height: "100%",
-    borderRadius: 20,
-    alignItems: "center",
-    justifyContent: "center",
+  logoAvatar: {
+    width: 36,
+    height: 36,
+  },
+  driverInfo: {
+    gap: 2,
   },
   title: {
-    fontSize: 18,
-    lineHeight: 22,
-    letterSpacing: -0.5,
+    fontSize: 20,
+    letterSpacing: -0.8,
   },
   row: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    marginTop: 2,
   },
   subtitle: {
-    fontSize: 12,
+    fontSize: 9,
+    letterSpacing: 1,
+    textTransform: "uppercase",
   },
   stats: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 14,
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 16,
   },
   statsText: {
-    fontSize: 14,
+    fontSize: 16,
+    letterSpacing: -0.5,
   },
 });

@@ -136,7 +136,7 @@ export default function HomeScreen() {
         style={styles.scroll}
         contentContainerStyle={[
           styles.content,
-          { paddingTop: insets.top + 100 + webTopPadding, paddingBottom: 150 },
+          { paddingTop: insets.top + 110 + webTopPadding, paddingBottom: 150 },
         ]}
         showsVerticalScrollIndicator={false}
       >
@@ -145,12 +145,13 @@ export default function HomeScreen() {
             styles.mainShiftCard,
             {
               backgroundColor: isOnline ? "transparent" : "rgba(255, 255, 255, 0.02)",
-              borderColor: isOnline ? "rgba(255, 184, 0, 0.2)" : colors.cardBorder,
+              borderColor: isOnline ? "rgba(255, 184, 0, 0.2)" : "rgba(255, 255, 255, 0.05)",
+              ...theme.shadows.soft,
             },
           ]}
         >
           <View style={styles.shiftHeader}>
-            <View>
+            <View style={styles.shiftInfo}>
               <Text style={[styles.statusLabel, { color: isOnline ? colors.success : colors.textTertiary, fontFamily: theme.font.displayBold }]}>
                 {isOnline ? "OPERATIONAL" : isLocating ? "INITIALIZING..." : "SYSTEM STANDBY"}
               </Text>
@@ -176,27 +177,29 @@ export default function HomeScreen() {
             <View style={styles.quickStats}>
               <View style={styles.quickStatItem}>
                 {Platform.OS === "ios" ? (
-                  <SymbolView name="bolt.fill" size={14} tintColor={colors.primary} />
+                  <SymbolView name="bolt.fill" size={12} tintColor={colors.primary} />
                 ) : (
-                  <Feather name="zap" size={14} color={colors.primary} />
+                  <Feather name="zap" size={12} color={colors.primary} />
                 )}
-                <Text style={[styles.quickStatText, { color: colors.textSecondary, fontFamily: theme.font.medium }]}>Hot Area</Text>
+                <Text style={[styles.quickStatText, { color: colors.textSecondary, fontFamily: theme.font.displayBold }]}>HOT AREA</Text>
               </View>
               <View style={styles.statDot} />
               <View style={styles.quickStatItem}>
                 {Platform.OS === "ios" ? (
-                  <SymbolView name="shield.fill" size={14} tintColor={colors.success} />
+                  <SymbolView name="shield.fill" size={12} tintColor={colors.success} />
                 ) : (
-                  <Feather name="shield" size={14} color={colors.success} />
+                  <Feather name="shield" size={12} color={colors.success} />
                 )}
-                <Text style={[styles.quickStatText, { color: colors.textSecondary, fontFamily: theme.font.medium }]}>Secure</Text>
+                <Text style={[styles.quickStatText, { color: colors.textSecondary, fontFamily: theme.font.displayBold }]}>SECURE</Text>
               </View>
             </View>
           )}
         </AppCard>
 
         {isOnline && activeTrip && (
-          <ActiveTripCard trip={activeTrip} onComplete={completeTrip} />
+          <View style={styles.section}>
+            <ActiveTripCard trip={activeTrip} onComplete={completeTrip} />
+          </View>
         )}
 
         {isOnline && !activeTrip && (
@@ -224,7 +227,7 @@ export default function HomeScreen() {
         )}
 
         {!hasActiveTrip && (
-          <View style={styles.chartWrapper}>
+          <View style={[styles.section, { opacity: 0.6 }]}>
             <WeeklyChart />
           </View>
         )}
@@ -239,26 +242,36 @@ export default function HomeScreen() {
         <View style={styles.actionGrid}>
           <Pressable
             onPress={() => Linking.openURL("tel:+96170123456")}
-            style={({ pressed }) => [styles.heroAction, { backgroundColor: colors.card, opacity: pressed ? 0.8 : 1 }]}
+            style={({ pressed }) => [styles.heroAction, { backgroundColor: colors.card, borderLeftWidth: 4, borderLeftColor: colors.primary, opacity: pressed ? 0.8 : 1 }]}
           >
-            {Platform.OS === "ios" ? (
-              <SymbolView name="phone.fill" size={20} tintColor={colors.primary} />
-            ) : (
-              <Feather name="phone-call" size={20} color={colors.primary} />
-            )}
-            <Text style={[styles.heroActionText, { color: colors.foreground, fontFamily: theme.font.semibold }]}>Dispatch Support</Text>
+            <View style={styles.heroActionIcon}>
+              {Platform.OS === "ios" ? (
+                <SymbolView name="phone.fill" size={20} tintColor={colors.primary} />
+              ) : (
+                <Feather name="phone-call" size={20} color={colors.primary} />
+              )}
+            </View>
+            <View>
+              <Text style={[styles.heroActionTitle, { color: colors.foreground, fontFamily: theme.font.displayBold }]}>DISPATCH SUPPORT</Text>
+              <Text style={[styles.heroActionSubtitle, { color: colors.textTertiary, fontFamily: theme.font.medium }]}>Contact operational HQ</Text>
+            </View>
           </Pressable>
           
           <Pressable
             onPress={() => Linking.openURL("mailto:support@allwaytaxi.com")}
-            style={({ pressed }) => [styles.heroAction, { backgroundColor: colors.card, opacity: pressed ? 0.8 : 1 }]}
+            style={({ pressed }) => [styles.heroAction, { backgroundColor: colors.card, borderLeftWidth: 4, borderLeftColor: colors.textSecondary, opacity: pressed ? 0.8 : 1 }]}
           >
-            {Platform.OS === "ios" ? (
-              <SymbolView name="info.circle.fill" size={20} tintColor={colors.textSecondary} />
-            ) : (
-              <Feather name="info" size={20} color={colors.textSecondary} />
-            )}
-            <Text style={[styles.heroActionText, { color: colors.foreground, fontFamily: theme.font.semibold }]}>Technical Issue</Text>
+            <View style={styles.heroActionIcon}>
+              {Platform.OS === "ios" ? (
+                <SymbolView name="info.circle.fill" size={20} tintColor={colors.textSecondary} />
+              ) : (
+                <Feather name="info" size={20} color={colors.textSecondary} />
+              )}
+            </View>
+            <View>
+              <Text style={[styles.heroActionTitle, { color: colors.foreground, fontFamily: theme.font.displayBold }]}>TECHNICAL ISSUE</Text>
+              <Text style={[styles.heroActionSubtitle, { color: colors.textTertiary, fontFamily: theme.font.medium }]}>Report a system bug</Text>
+            </View>
           </Pressable>
         </View>
 
@@ -289,137 +302,155 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
+  },
+  section: {
+    marginBottom: 20,
   },
   mainShiftCard: {
-    borderRadius: 28,
-    padding: 24,
+    borderRadius: 32,
+    padding: 28,
     marginBottom: 24,
-    borderWidth: 1.5,
+    borderWidth: 1,
   },
   shiftHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
+  shiftInfo: {
+    gap: 4,
+  },
   statusLabel: {
-    fontSize: 10,
+    fontSize: 9,
     letterSpacing: 2,
     textTransform: "uppercase",
-    opacity: 0.8,
+    opacity: 0.9,
   },
   shiftTimer: {
-    fontSize: 36,
-    letterSpacing: -1,
-    marginTop: 4,
+    fontSize: 42,
+    letterSpacing: -1.5,
+    lineHeight: 48,
   },
   offlineText: {
-    fontSize: 15,
-    marginTop: 4,
+    fontSize: 16,
     opacity: 0.6,
   },
   quickStats: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    marginTop: 20,
-    paddingTop: 20,
+    marginTop: 24,
+    paddingTop: 24,
     borderTopWidth: 1,
     borderTopColor: "rgba(255, 255, 255, 0.05)",
   },
   quickStatItem: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: 8,
   },
   quickStatText: {
-    fontSize: 12,
+    fontSize: 10,
+    letterSpacing: 1,
   },
   statDot: {
     width: 3,
     height: 3,
     borderRadius: 2,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
   },
   tripsSection: {
-    marginTop: 8,
+    marginTop: 12,
   },
   sectionHeader: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    marginBottom: 20,
+    marginBottom: 24,
     paddingLeft: 4,
   },
   sectionTitle: {
-    fontSize: 20,
+    fontSize: 22,
     letterSpacing: -0.5,
   },
   badge: {
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 10,
   },
   badgeText: {
-    fontSize: 13,
+    fontSize: 14,
   },
   radarContainer: {
     alignItems: "center",
-    paddingVertical: 60,
-    gap: 24,
+    paddingVertical: 80,
+    gap: 28,
   },
   radarBg: {
-    width: 140,
-    height: 140,
-    borderRadius: 70,
+    width: 160,
+    height: 160,
+    borderRadius: 80,
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
   },
   radarPulse: {
     position: "absolute",
-    width: 140,
-    height: 140,
-    borderRadius: 70,
+    width: 160,
+    height: 160,
+    borderRadius: 80,
   },
   radarSweep: {
-    width: 70,
-    height: 70,
-    borderTopWidth: 4,
-    borderRadius: 35,
+    width: 80,
+    height: 80,
+    borderTopWidth: 5,
+    borderRadius: 40,
     position: "absolute",
   },
   radarCenter: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
   },
   radarText: {
     fontSize: 14,
     letterSpacing: 0.5,
-  },
-  chartWrapper: {
-    opacity: 0.5,
-    marginTop: 12,
+    opacity: 0.6,
   },
   actionGrid: {
-    gap: 12,
+    gap: 16,
     marginTop: 24,
-    marginBottom: 16,
+    marginBottom: 24,
   },
   heroAction: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 16,
-    padding: 18,
-    borderRadius: 18,
+    gap: 20,
+    padding: 22,
+    borderRadius: 24,
   },
-  heroActionText: {
-    fontSize: 15,
+  heroActionIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(255, 255, 255, 0.03)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  heroActionTitle: {
+    fontSize: 14,
+    letterSpacing: 1,
+  },
+  heroActionSubtitle: {
+    fontSize: 12,
+    marginTop: 2,
+    opacity: 0.4,
   },
   errorCard: {
-    gap: 12,
+    gap: 16,
     marginTop: 20,
+    padding: 24,
   },
   errorText: {
     fontSize: 14,
