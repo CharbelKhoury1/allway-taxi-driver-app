@@ -1,0 +1,362 @@
+# Allway Taxi — Native Driver App: Full Build Specification
+
+## Project Overview
+You are building a production-grade native mobile application for taxi drivers.
+The app connects to an existing live Supabase backend (PostgreSQL + Realtime).
+The app's sole purpose is to allow drivers to go "On Shift," receive and manage trip
+requests in real-time, track their earnings, and manage their profile.
+
+---
+
+## Backend Infrastructure
+
+**Provider:** Supabase
+**Auth Model:** The driver app uses the ANON key (not auth.users). Drivers authenticate
+by matching their phone + pwa_pin against the `drivers` table directly.
+**Realtime:** Supabase Postgres Changes (must be enabled on the `drivers` and `trips` tables).
+
+**Environment Variables:**
+```
+SUPABASE_URL=https://hfybipzfzmxucuiaxbeu.supabase.co
+SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+---
+
+## Database Schema (Exact Field Names — Do Not Deviate)
+
+### `drivers` table
+```sql
+id            uuid PRIMARY KEY
+full_name     text
+phone         text UNIQUE
+plate         text              -- Vehicle plate number
+car_model     text              -- e.g. "Toyota Corolla"
+photo_url     text
+rating        numeric(3,2)      -- e.g. 4.85
+total_trips   int
+online        boolean           -- true = on shift, false = offline
+status        text              -- 'available' | 'on_trip' | 'offline'
+lat           numeric(10,7)     -- Current GPS latitude
+lng           numeric(10,7)     -- Current GPS longitude
+last_seen     timestamptz       -- Updated every 25s as heartbeat
+pwa_pin       text              -- 4–6 digit PIN for login
+created_at    timestamptz
+```
+
+### `trips` table
+```sql
+id               uuid PRIMARY KEY
+customer_id      uuid → customers(id)
+driver_id        uuid → drivers(id)  -- NULL = unassigned (broadcast pool)
+pickup_address   text NOT NULL
+pickup_lat       numeric(10,7)
+pickup_lng       numeric(10,7)
+dropoff_address  text NOT NULL
+dropoff_lat      numeric(10,7)
+dropoff_lng      numeric(10,7)
+status           text  -- 'pending'|'dispatching'|'accepted'|'on_trip'|'completed'|'cancelled'|'no_driver'
+fare_usd         numeric(8,2)
+distance_km      numeric(6,2)
+duration_min     int
+notes            text
+cancel_reason    text
+requested_at     timestamptz
+accepted_at      timestamptz
+pickup_at        timestamptz
+completed_at     timestamptz
+```
+
+### `customers` table (read-only for driver app)
+```sql
+id          uuid PRIMARY KEY
+full_name   text
+phone       text     -- Display and call button
+status      text     -- 'regular' | 'vip' | 'blocked'
+```
+
+---
+
+## The Business: How Allway Taxi Works
+
+Allway Taxi is a Lebanese taxi company. Bookings come in two ways:
+1. **WhatsApp AI Agent** — Customers text the company. An AI bot creates a trip
+   with status `pending` and `driver_id = NULL`.
+2. **Operations CRM (Web)** — A human dispatcher creates a trip manually and either
+   leaves it unassigned (`pending`) or targets a specific driver (`dispatching`,
+   with `driver_id` set).
+
+The driver app is the mobile "terminal" that receives these bookings in real time.
+
+---
+
+## The Full Operational Flow (Build This Exactly)
+
+### Flow A: The Driver Goes On Shift
+1. Driver opens the app → sees the Home screen (offline state).
+2. Driver taps the circular power button.
+3. App immediately:
+   a. Requests `Always On` location permission if not granted.
+   b. Sets `online = true`, `status = 'available'`, `last_seen = now()` in the
+      `drivers` table.
+   c. Acquires a Wake Lock (keeps screen alive).
+   d. Starts a high-accuracy background GPS service.
+   e. Starts a 25-second heartbeat interval that updates `last_seen`.
+   f. Opens three Supabase Realtime channels (see Channel Spec below).
+   g. Fetches all currently pending/broadcast trips from `trips` table where
+      `status = 'pending' AND driver_id IS NULL` to immediately populate the
+      "Available Requests" list.
+4. The UI transitions to the "Online" state with a glowing green indicator and
+   a live shift timer (HH:MM:SS).
+
+### Flow B: receiving a BROADCAST job (Pool Trip)
+- **Trigger:** A new row appears in `trips` with `status = 'pending'` and
+  `driver_id = NULL`.
+- **Driver Experience:**
+  - A job card appears in the "Available Requests" section on the Home tab,
+    showing: Pickup address, Dropoff address, Fare ($USD), Distance (km).
+  - Multiple drivers see this simultaneously. The first to tap Accept claims it.
+- **Acceptance (Atomic Claim):**
+  ```sql
+  UPDATE trips
+  SET driver_id = [CURRENT_DRIVER_ID], status = 'accepted',
+      accepted_at = now()
+  WHERE id = [TRIP_ID] AND driver_id IS NULL
+  RETURNING id;
+  ```
+  - If the update returns 0 rows, another driver claimed it. Silently remove
+    the card from the list. Do NOT show an error to the driver.
+  - If successful, transition to Active Trip state (Flow D).
+
+### Flow C: Receiving a DIRECT/TARGETED job (Dispatch)
+- **Trigger:** A trip row is updated/inserted where `status = 'dispatching'` AND
+  `driver_id = CURRENT_DRIVER_ID`.
+- **Driver Experience:**
+  - A LOUD full-screen modal overlay appears — "Incoming Trip Request".
+  - The modal includes: Pickup address, Dropoff address, Fare, Distance, Customer
+    name, and a prominent 120-second countdown timer.
+  - The countdown bar changes color: Yellow (>40s), Orange (>15s), Red (<15s).
+  - The app plays a looping alert sound until the driver responds.
+  - Two buttons: "Decline" and "✓ Accept".
+- **On Accept:**
+  ```sql
+  UPDATE trips SET status = 'accepted', accepted_at = now()
+  WHERE id = [TRIP_ID];
+  UPDATE drivers SET status = 'on_trip' WHERE id = [CURRENT_DRIVER_ID];
+  ```
+  - Transition to Active Trip state (Flow D).
+- **On Decline (or countdown expires):**
+  ```sql
+  UPDATE trips SET driver_id = NULL, status = 'pending'
+  WHERE id = [TRIP_ID];
+  UPDATE drivers SET status = 'available' WHERE id = [CURRENT_DRIVER_ID];
+  ```
+  - Trip returns to the pool. Driver stays online and available.
+
+### Flow D: The Active Trip State
+- The Home screen shows a full green "ACTIVE TRIP IN PROGRESS" card replacing the
+  request list.
+- Card displays: Customer full name, customer phone (as a one-tap `tel:` call link),
+  pickup address, dropoff address.
+- Two action buttons:
+  1. **"🗺 Open Maps"** → Deep-links to Google Maps with the pickup address:
+     `https://maps.google.com/search/?q=[ENCODED_PICKUP_ADDRESS]`
+  2. **"✓ Complete Trip"** → Triggers completion logic:
+     ```sql
+     UPDATE trips SET status = 'completed', completed_at = now()
+     WHERE id = [ACTIVE_TRIP_ID];
+     UPDATE drivers SET status = 'available' WHERE id = [CURRENT_DRIVER_ID];
+     ```
+     Then clear the active trip from state. Driver is back in the pool.
+- The shift power button is DISABLED while an active trip exists. Show a small
+  sub-label "Complete trip first."
+
+### Flow E: Going Offline
+1. Driver taps the power button (only enabled when no active trip).
+2. App immediately:
+   a. Stops GPS service.
+   b. Releases Wake Lock.
+   c. Closes trip and broadcast Realtime channels.
+   d. Clears the shift timer.
+   e. Updates DB:
+      ```sql
+      UPDATE drivers SET online = false, status = 'offline'
+      WHERE id = [CURRENT_DRIVER_ID];
+      ```
+   f. Persists `_wasOnline: false` in local storage so a page refresh doesn't
+      auto-resume the shift.
+
+### Flow F: Admin Remote Toggle (Critical Edge Case)
+The CRM can force a driver online or offline remotely. The app MUST handle this:
+- A dedicated Supabase channel listens for `UPDATE` on `drivers` where
+  `id = CURRENT_DRIVER_ID`.
+- If `online` flips to `false` (admin forced offline) → call `goOffline()` immediately.
+- If `online` flips to `true` (admin forced online) → call `goOnline()` immediately.
+- This channel must NEVER be torn down, even when the driver manually toggles shifts.
+
+---
+
+## Realtime Channel Architecture (3 Channels)
+
+### Channel 1: `driver-trips-[DRIVER_ID]` (Direct Dispatch)
+- Listen: `UPDATE` on `trips` where `driver_id = CURRENT_DRIVER_ID`
+- On `status = 'dispatching'` → fetch full trip details → show Full-Screen Modal.
+- On `status = 'accepted' | 'on_trip'` → set as active trip, dismiss modal.
+- On `status = 'completed' | 'cancelled'` → clear active trip.
+
+### Channel 2: `pending-trips-broadcast` (Pool)
+- Listen: `INSERT` on `trips`
+- If `status = 'pending' AND driver_id IS NULL` → add to "Available Requests" list.
+- Listen: `UPDATE` on `trips`
+- If trip is no longer `pending` or `driver_id` changed to someone else → remove
+  from list.
+- Listen: `DELETE` on `trips`
+- Remove the card from the list immediately.
+
+### Channel 3: `driver-self-[DRIVER_ID]` (Admin Remote Monitor — PERMANENT)
+- Listen: `UPDATE` on `drivers` where `id = CURRENT_DRIVER_ID`
+- Sync profile changes (rating, name, total_trips) to local state.
+- If `online` changes → call `goOnline()` or `goOffline()` accordingly.
+- **This channel must never be removed.**
+
+---
+
+## GPS & Background Location Requirements
+
+- Permission: Request `Always Allow` location access on shift start.
+- Accuracy: `HIGH_ACCURACY` mode.
+- Stream logic:
+  - Use `watchPosition` (or equivalent native background location service).
+  - On each new position: update `drivers` table with `lat`, `lng`, and `last_seen`.
+  - If GPS signal is lost for >45 seconds, restart the location watcher automatically.
+  - On app return to foreground (`AppState` change), restart the watcher.
+- Heartbeat: Regardless of GPS, ping `last_seen = now()` every 25 seconds.
+- Wake Lock: Keep screen from sleeping while On Shift. Release on goOffline().
+
+---
+
+## App Structure (3 Tabs + Splash + Login)
+
+### Splash Screen (1.5 seconds)
+- Full-screen dark background (`#0D0D14`).
+- Centered Allway logo with a yellow drop-shadow glow.
+- An animated loading bar below the logo fills from 0% to 100%.
+
+### Login Screen
+- Fields: Phone Number (numeric input), PIN (secure, max 6 digits).
+- Submit: Query `drivers` table (`ilike` phone match + `pwa_pin` match).
+- On success: Save driver object to SecureStore / encrypted local storage.
+- On fail: Show error "Incorrect phone number or PIN."
+- Hint at the bottom: "Add to Home Screen for the best experience."
+
+### Tab 1: Home
+Sections (top to bottom):
+1. **Greeting header:** "Good morning, [First Name]" (time-based).
+2. **Shift Card (Power button):**
+   - Left side: Status label (OFFLINE / LOCATING… / ON SHIFT), shift timer.
+   - Right side: 64px circular power button.
+   - States: Offline (gold pulsing button), Acquiring GPS (spinner), Online (green
+     breathing animation). Button is disabled with "Complete trip first" when
+     activeTrip exists.
+3. **Available Requests list:** (only when online AND no active trip)
+   - If list is empty: Show animated radar sweep "Scanning for trips…"
+   - If jobs exist: Show trip cards with Accept button.
+4. **Active Trip card:** (only when activeTrip exists) — Green gradient card.
+5. **Weekly Earnings mini chart:** 7-day bar chart (last 7 days, highlight today).
+6. **Quick Actions grid:** "Call Support" (tel link) and "Report Issue" (mailto link).
+7. **Shift Status panel:** Connection (Supabase Realtime), GPS Signal, Wake Lock.
+
+### Tab 2: Trip History
+- Summary row: Total trips, Awaiting trips, Total Earned ($).
+- Filter pills: All / Awaiting / Completed / Cancelled.
+- Trip list (last 40 trips, newest first) with: Customer name, fare, status badge,
+  pickup and dropoff addresses, distance, time ago label.
+- Earnings are calculated by summing `fare_usd` of trips with `status = 'completed'`.
+
+### Tab 3: Account
+- **Profile Hero:** Avatar initial, full name, car model, plate, star rating badge,
+  total trips badge, acceptance rate badge.
+- **Earnings Breakdown:** 3 cards — Today / 7 Days / 30 Days (amount + trip count).
+- **Vehicle Details:** Car Model, Plate Number, All-time Trips, Star Rating.
+- **Change PIN:** Collapsible form. Validates current PIN before updating.
+  ```sql
+  UPDATE drivers SET pwa_pin = [NEW_PIN] WHERE id = [CURRENT_DRIVER_ID];
+  ```
+- **Logout Button:** Clears SecureStore session, calls `goOffline()` if online.
+
+---
+
+## Session Persistence
+- On login: save entire driver object + `_wasOnline: false` to SecureStore.
+- On goOnline: update `_wasOnline: true`.
+- On goOffline: update `_wasOnline: false`.
+- On app cold start (if session exists): auto-login the driver.
+- If `_wasOnline` was true on last close: auto-call `goOnline()` to resume shift.
+  (GPS wake lock will require a tap on iOS — handle gracefully.)
+
+---
+
+## Design System: "Beirut Midnight"
+
+**Colors:**
+```
+Background:    #0D0D14
+Card Surface:  rgba(255,255,255,0.03)
+Card Border:   rgba(255,255,255,0.07)
+Primary Accent: #F5B800  (Allway Yellow)
+Success/Online: #5DCAA5  (Green)
+Error/Danger:  #F09595   (Soft Red)
+Warning:       #EF9F27   (Amber)
+Text Primary:  #FFFFFF
+Text Secondary: rgba(255,255,255,0.55)
+Text Tertiary:  rgba(255,255,255,0.3)
+```
+
+**Typography:** Inter (or system-ui fallback). Weights: 600, 700, 800, 900.
+
+**Animations (must implement all):**
+- `lucidBreath`: Online power button — soft scale pulse (1.05→1.09) every 3s.
+- `ctaBreath`: Offline power button — yellow box-shadow pulse every 3s.
+- `radarSweep`: Conic-gradient rotating sweep for "Scanning for trips" state.
+- `pulse`: 2s opacity pulse for status dots and GPS blips on radar.
+- `slideUp`: New trip cards slide up from Y+20px with fade-in.
+- `cardBurst`: On button tap, a ring expands outward from center and fades.
+- `spin`: Standard spinner for loading states.
+
+**Haptics:**
+- Light impact on power button toggle.
+- Heavy impact on "Accept Trip" and "Complete Trip."
+- Medium impact on any error.
+
+**Interactions:**
+- All tappable elements must have `-webkit-tap-highlight-color: transparent`.
+- Active scale-down (0.95) on touch for all major buttons.
+
+---
+
+## Polling Backup (Critical for Mobile Networks)
+Mobile networks are unreliable. Realtime websockets can silently drop.
+Every 15 seconds while online AND no active trip, run a poll:
+```sql
+SELECT *, customers(full_name)
+FROM trips
+WHERE status = 'pending' AND driver_id IS NULL
+   OR (status = 'dispatching' AND driver_id = CURRENT_DRIVER_ID)
+```
+Merge results into the `requestedTrips` list (add new, remove stale by ID).
+
+---
+
+## Edge Cases to Handle
+
+1. **Race lost on claim:** If atomic claim update returns 0 rows, silently remove
+   the card. No alert needed.
+2. **Duplicate modals:** Track the currently shown `pendingTrip.id` in a ref. If
+   the same trip fires again, do not re-trigger the modal/sound.
+3. **App backgrounded during active trip:** Resume correctly on foreground. Restart
+   GPS watcher. Active trip must persist from SecureStore.
+4. **No GPS permission:** Show a persistent warning banner. Driver can still be
+   "online" but CRM will not see their location.
+5. **Admin forces offline:** Detect via self-monitor channel → call `goOffline()`.
+6. **Network drop:** Show a subtle "No connection" indicator. Do not set driver
+   offline locally — wait for confirmation.
