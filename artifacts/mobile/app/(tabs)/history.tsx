@@ -9,6 +9,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Feather } from "@expo/vector-icons";
 
 import { AppCard } from "@/components/ui/AppCard";
 import { StateView } from "@/components/ui/StateView";
@@ -41,7 +42,6 @@ function getStatusColor(status: string, colors: ReturnType<typeof useColors>) {
       return colors.destructive;
     case "pending":
     case "dispatching":
-      return colors.warning;
     case "accepted":
     case "on_trip":
       return colors.primary;
@@ -66,11 +66,8 @@ export default function HistoryScreen() {
 
   const fetchTrips = async (isManualRefresh = false) => {
     if (!driver) return;
-    if (isManualRefresh) {
-      setRefreshing(true);
-    } else {
-      setLoading(true);
-    }
+    if (isManualRefresh) setRefreshing(true);
+    else setLoading(true);
     setError(null);
 
     const { data, error: fetchError } = await supabase
@@ -79,32 +76,27 @@ export default function HistoryScreen() {
       .eq("driver_id", driver.id)
       .order("requested_at", { ascending: false })
       .limit(40);
-    if (fetchError) {
-      setError("Failed to load trips.");
-    } else if (data) {
-      setTrips(data);
-    }
+      
+    if (fetchError) setError("Failed to load trips.");
+    else if (data) setTrips(data);
+    
     setLoading(false);
     setRefreshing(false);
   };
 
   const filteredTrips = trips.filter((t) => {
     if (filter === "all") return true;
-    if (filter === "pending") return t.status === "pending" || t.status === "dispatching" || t.status === "accepted" || t.status === "on_trip";
+    if (filter === "pending") return ["pending", "dispatching", "accepted", "on_trip"].includes(t.status);
     return t.status === filter;
   });
 
   const totalTrips = trips.length;
-  const awaitingTrips = trips.filter(
-    (t) => t.status === "pending" || t.status === "dispatching" || t.status === "accepted" || t.status === "on_trip",
-  ).length;
-  const totalEarned = trips
-    .filter((t) => t.status === "completed")
-    .reduce((sum, t) => sum + (Number(t.fare_usd) || 0), 0);
+  const awaitingTrips = trips.filter((t) => ["pending", "dispatching", "accepted", "on_trip"].includes(t.status)).length;
+  const totalEarned = trips.filter((t) => t.status === "completed").reduce((sum, t) => sum + (Number(t.fare_usd) || 0), 0);
 
   const filters: { label: string; value: FilterType }[] = [
     { label: "All", value: "all" },
-    { label: "Awaiting", value: "pending" },
+    { label: "Active", value: "pending" },
     { label: "Completed", value: "completed" },
     { label: "Cancelled", value: "cancelled" },
   ];
@@ -113,21 +105,17 @@ export default function HistoryScreen() {
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
-      <View style={[styles.header, { paddingTop: insets.top + 16 + webTopPadding }]}>
-        <Text style={[styles.title, { color: colors.foreground }]}>Trip History</Text>
+      <View style={[styles.header, { paddingTop: insets.top + 24 + webTopPadding }]}>
+        <Text style={[styles.title, { color: colors.foreground, fontFamily: theme.font.displayBold }]}>Activity</Text>
 
         <View style={styles.summaryRow}>
           <AppCard style={styles.summaryCard}>
-            <Text style={[styles.summaryValue, { color: colors.foreground }]}>{totalTrips}</Text>
-            <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Total</Text>
+            <Text style={[styles.summaryValue, { color: colors.foreground, fontFamily: theme.font.displayBold }]}>{totalTrips}</Text>
+            <Text style={[styles.summaryLabel, { color: colors.textTertiary, fontFamily: theme.font.medium }]}>TRIPS</Text>
           </AppCard>
           <AppCard style={styles.summaryCard}>
-            <Text style={[styles.summaryValue, { color: colors.warning }]}>{awaitingTrips}</Text>
-            <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Awaiting</Text>
-          </AppCard>
-          <AppCard style={styles.summaryCard}>
-            <Text style={[styles.summaryValue, { color: colors.success }]}>${totalEarned.toFixed(0)}</Text>
-            <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Earned</Text>
+            <Text style={[styles.summaryValue, { color: colors.primary, fontFamily: theme.font.displayBold }]}>${totalEarned.toFixed(0)}</Text>
+            <Text style={[styles.summaryLabel, { color: colors.textTertiary, fontFamily: theme.font.medium }]}>EARNED</Text>
           </AppCard>
         </View>
 
@@ -139,7 +127,8 @@ export default function HistoryScreen() {
               style={[
                 styles.filterPill,
                 {
-                  backgroundColor: filter === f.value ? colors.primary : colors.muted,
+                  backgroundColor: filter === f.value ? colors.primary : colors.card,
+                  borderColor: filter === f.value ? colors.primary : colors.cardBorder,
                 },
               ]}
             >
@@ -147,8 +136,8 @@ export default function HistoryScreen() {
                 style={[
                   styles.filterText,
                   {
-                    color: filter === f.value ? "#0D0D14" : colors.textSecondary,
-                    fontFamily: filter === f.value ? "Inter_600SemiBold" : "Inter_400Regular",
+                    color: filter === f.value ? "#030303" : colors.textSecondary,
+                    fontFamily: filter === f.value ? theme.font.displayBold : theme.font.medium,
                   },
                 ]}
               >
@@ -160,65 +149,45 @@ export default function HistoryScreen() {
       </View>
 
       {loading ? (
-        <StateView mode="loading" title="Loading trips..." />
+        <StateView mode="loading" title="Loading history..." />
       ) : error ? (
-        <StateView
-          mode="error"
-          title="Could not load trip history"
-          description={error}
-          onRetry={() => fetchTrips()}
-        />
+        <StateView mode="error" title="Failed to load" description={error} onRetry={() => fetchTrips()} />
       ) : (
         <FlatList
           data={filteredTrips}
           keyExtractor={(item) => item.id}
-          scrollEnabled={filteredTrips.length > 0}
-          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100 }}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 120 }}
           refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={() => fetchTrips(true)}
-              tintColor={colors.primary}
-            />
+            <RefreshControl refreshing={refreshing} onRefresh={() => fetchTrips(true)} tintColor={colors.primary} />
           }
           renderItem={({ item }) => (
             <AppCard style={styles.tripItem}>
               <View style={styles.tripHeader}>
-                <Text style={[styles.tripCustomer, { color: colors.foreground }]}>
-                  {item.customers?.full_name || "Customer"}
-                </Text>
-                <View style={styles.tripRight}>
-                  <Text style={[styles.tripFare, { color: colors.primary }]}>
-                    ${formatCurrency(item.fare_usd)}
+                <View>
+                  <Text style={[styles.tripCustomer, { color: colors.foreground, fontFamily: theme.font.displayBold }]}>
+                    {item.customers?.full_name || "Guest"}
                   </Text>
-                  <View style={[styles.statusBadge, { backgroundColor: `${getStatusColor(item.status, colors)}20` }]}>
-                    <Text style={[styles.statusText, { color: getStatusColor(item.status, colors) }]}>
-                      {item.status}
+                  <Text style={[styles.tripTime, { color: colors.textTertiary, fontFamily: theme.font.regular }]}>
+                    {getTimeAgo(item.requested_at)}
+                  </Text>
+                </View>
+                <View style={styles.tripRight}>
+                  <Text style={[styles.tripFare, { color: colors.primary, fontFamily: theme.font.displayBold }]}>
+                    ${formatCurrency(item.fare_usd || 0)}
+                  </Text>
+                  <View style={[styles.statusBadge, { backgroundColor: "rgba(255, 255, 255, 0.05)" }]}>
+                    <Text style={[styles.statusText, { color: getStatusColor(item.status, colors), fontFamily: theme.font.bold }]}>
+                      {item.status.replace("_", " ")}
                     </Text>
                   </View>
                 </View>
               </View>
-              <View style={styles.tripAddresses}>
-                <TripRouteBlock
-                  pickupAddress={item.pickup_address}
-                  dropoffAddress={item.dropoff_address}
-                  numberOfLines={1}
-                />
-              </View>
-              <View style={styles.tripFooter}>
-                {formatDistanceKm(item.distance_km) ? (
-                  <Text style={[styles.tripMeta, { color: colors.textTertiary }]}>
-                    {formatDistanceKm(item.distance_km)}
-                  </Text>
-                ) : null}
-                <Text style={[styles.tripMeta, { color: colors.textTertiary }]}>
-                  {getTimeAgo(item.requested_at)}
-                </Text>
-              </View>
+              <View style={styles.divider} />
+              <TripRouteBlock pickupAddress={item.pickup_address} dropoffAddress={item.dropoff_address} numberOfLines={1} />
             </AppCard>
           )}
           ListEmptyComponent={
-            <StateView mode="empty" title="No trips found" description="Completed and pending trips appear here." />
+            <StateView mode="empty" title="No trips found" description="Awaiting is empty." />
           }
         />
       )}
@@ -232,90 +201,82 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: 20,
-    paddingBottom: 12,
+    paddingBottom: 20,
   },
   title: {
-    fontSize: 24,
-    fontFamily: "Inter_700Bold",
-    marginBottom: 16,
+    fontSize: 28,
+    marginBottom: 20,
   },
   summaryRow: {
     flexDirection: "row",
-    gap: 10,
-    marginBottom: 14,
+    gap: 12,
+    marginBottom: 20,
   },
   summaryCard: {
     flex: 1,
-    borderRadius: theme.radius.md,
-    padding: 12,
+    padding: 16,
     alignItems: "center",
     marginBottom: 0,
+    backgroundColor: "rgba(255, 255, 255, 0.03)",
   },
   summaryValue: {
-    fontSize: 20,
-    fontFamily: "Inter_700Bold",
+    fontSize: 24,
   },
   summaryLabel: {
-    fontSize: 11,
-    fontFamily: "Inter_400Regular",
-    marginTop: 2,
+    fontSize: 10,
+    letterSpacing: 1.5,
+    marginTop: 4,
   },
   filterRow: {
     flexDirection: "row",
     gap: 8,
   },
   filterPill: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
   },
   filterText: {
     fontSize: 13,
   },
   tripItem: {
-    borderRadius: theme.radius.lg,
-    padding: 14,
-    marginBottom: 10,
+    padding: 16,
+    marginBottom: 12,
   },
   tripHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 8,
+    marginBottom: 12,
   },
   tripCustomer: {
-    fontSize: 15,
-    fontFamily: "Inter_600SemiBold",
-    flex: 1,
+    fontSize: 16,
+  },
+  tripTime: {
+    fontSize: 12,
+    marginTop: 2,
   },
   tripRight: {
     alignItems: "flex-end",
     gap: 4,
   },
   tripFare: {
-    fontSize: 15,
-    fontFamily: "Inter_700Bold",
+    fontSize: 18,
   },
   statusBadge: {
     paddingHorizontal: 8,
-    paddingVertical: 2,
+    paddingVertical: 3,
     borderRadius: 6,
   },
   statusText: {
     fontSize: 10,
-    fontFamily: "Inter_600SemiBold",
     textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
-  tripAddresses: {
-    gap: 4,
-    marginBottom: 8,
-  },
-  tripFooter: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  tripMeta: {
-    fontSize: 12,
-    fontFamily: "Inter_400Regular",
+  divider: {
+    height: 1,
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    marginBottom: 12,
   },
 });

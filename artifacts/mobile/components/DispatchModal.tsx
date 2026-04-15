@@ -1,4 +1,4 @@
-import { Feather } from "@expo/vector-icons";
+import { Zap, User, MapPinned, ArrowRight } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import React, { useEffect, useRef, useState } from "react";
 import {
@@ -11,7 +11,11 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withTiming,
+  withRepeat,
+  withSequence,
+  interpolate,
 } from "react-native-reanimated";
+import { LinearGradient } from "expo-linear-gradient";
 
 import { AppButton } from "@/components/ui/AppButton";
 import { AppCard } from "@/components/ui/AppCard";
@@ -38,9 +42,9 @@ export function DispatchModal({
 }: DispatchModalProps) {
   const colors = useColors();
   const [secondsLeft, setSecondsLeft] = useState(COUNTDOWN_SECONDS);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const progress = useSharedValue(1);
+  const pulse = useSharedValue(1);
 
   useEffect(() => {
     if (!trip) {
@@ -52,19 +56,21 @@ export function DispatchModal({
     setSecondsLeft(COUNTDOWN_SECONDS);
     progress.value = 1;
     progress.value = withTiming(0, { duration: COUNTDOWN_SECONDS * 1000 });
+    
+    pulse.value = withRepeat(
+      withSequence(withTiming(1.08, { duration: 600 }), withTiming(1, { duration: 600 })),
+      -1,
+      true
+    );
 
     timerRef.current = setInterval(() => {
       setSecondsLeft((prev) => {
         if (prev <= 1) {
           if (timerRef.current) clearInterval(timerRef.current);
-          if (!isSubmitting && !isProcessing) {
-            onDecline();
-          }
+          if (!isProcessing) onDecline();
           return 0;
         }
-        if (prev === 40 || prev === 15) {
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-        }
+        if (prev <= 15) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         return prev - 1;
       });
     }, 1000);
@@ -78,6 +84,10 @@ export function DispatchModal({
     width: `${progress.value * 100}%`,
   }));
 
+  const countdownStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: secondsLeft <= 15 ? pulse.value : 1 }],
+  }));
+
   const getBarColor = () => {
     if (secondsLeft <= 15) return colors.destructive;
     if (secondsLeft <= 40) return colors.warning;
@@ -86,103 +96,73 @@ export function DispatchModal({
 
   if (!trip) return null;
 
-  const customerName = trip.customers?.full_name || "Customer";
-  const isBusy = isSubmitting || isProcessing;
-  const distance = formatDistanceKm(trip.distance_km);
-
-  const handleAccept = async () => {
-    if (isBusy) return;
-    setIsSubmitting(true);
-    try {
-      await onAccept();
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleDecline = async () => {
-    if (isBusy) return;
-    setIsSubmitting(true);
-    try {
-      await onDecline();
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+  const customerName = trip.customers?.full_name || "Guest";
+  const isBusy = isProcessing;
 
   return (
     <Modal visible={!!trip} animationType="slide" transparent={false}>
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={styles.header}>
-          <Feather name="bell" size={32} color={colors.primary} />
-          <Text style={[styles.title, { color: colors.foreground }]}>
-            Incoming Trip Request
+          <LinearGradient
+            colors={[colors.primary, "#FFD700"]}
+            style={styles.headerIconBg}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <Zap size={32} color="#030303" strokeWidth={2.5} />
+          </LinearGradient>
+          <Text style={[styles.title, { color: colors.foreground, fontFamily: theme.font.displayBold }]}>
+            Priority Dispatch
           </Text>
         </View>
 
         <View style={styles.timerSection}>
-          <Text style={[styles.countdown, { color: getBarColor() }]}>
-            {secondsLeft}s
-          </Text>
-          <View style={[styles.progressTrack, { backgroundColor: colors.muted }]}>
-            <Animated.View
-              style={[
-                styles.progressBar,
-                progressStyle,
-                { backgroundColor: getBarColor() },
-              ]}
-            />
+          <Animated.Text style={[styles.countdown, countdownStyle, { color: getBarColor(), fontFamily: theme.font.displayBold }]}>
+            {secondsLeft}
+          </Animated.Text>
+          <Text style={[styles.timerLabel, { color: colors.textTertiary, fontFamily: theme.font.displayBold }]}>SECONDS REMAINING</Text>
+          <View style={[styles.progressTrack, { backgroundColor: "rgba(255, 255, 255, 0.05)" }]}>
+            <Animated.View style={[styles.progressBar, progressStyle, { backgroundColor: getBarColor() }]} />
           </View>
         </View>
 
         <AppCard style={styles.detailsCard}>
-          <View style={styles.detailRow}>
-            <Feather name="user" size={16} color={colors.textSecondary} />
-            <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Customer</Text>
-            <Text style={[styles.detailValue, { color: colors.foreground }]}>{customerName}</Text>
+          <View style={styles.detailHeader}>
+            <View style={styles.row}>
+              <User size={18} color={colors.primary} />
+              <Text style={[styles.customerName, { color: colors.foreground, fontFamily: theme.font.displayBold }]}>{customerName}</Text>
+            </View>
+            <View style={[styles.fareBadge, { backgroundColor: "rgba(245, 184, 0, 0.1)" }]}>
+              <Text style={[styles.fareText, { color: colors.primary, fontFamily: theme.font.displayBold }]}>
+                ${formatCurrency(trip.fare_usd || 0)}
+              </Text>
+            </View>
           </View>
 
-          <View style={[styles.separator, { backgroundColor: colors.border }]} />
+          <View style={styles.divider} />
 
           <TripRouteBlock
             pickupAddress={trip.pickup_address}
             dropoffAddress={trip.dropoff_address}
             label
-            numberOfLines={3}
+            numberOfLines={2}
           />
 
-          <View style={[styles.separator, { backgroundColor: colors.border }]} />
-
-          <View style={styles.statsRow}>
-            {trip.fare_usd != null && (
-              <View style={styles.stat}>
-                <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Fare</Text>
-                <Text style={[styles.statValue, { color: colors.primary }]}>${formatCurrency(trip.fare_usd)}</Text>
-              </View>
-            )}
-            {distance ? (
-              <View style={styles.stat}>
-                <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Distance</Text>
-                <Text style={[styles.statValue, { color: colors.foreground }]}>{distance}</Text>
-              </View>
-            ) : null}
+          <View style={styles.distanceBadge}>
+            <MapPinned size={14} color={colors.textTertiary} />
+            <Text style={[styles.distanceText, { color: colors.textTertiary, fontFamily: theme.font.medium }]}>
+              {formatDistanceKm(trip.distance_km)} Estimated Distance
+            </Text>
           </View>
         </AppCard>
 
         <View style={styles.actions}>
+          <AppButton label="Skip" onPress={onDecline} variant="ghost" disabled={isBusy} flex={1} />
           <AppButton
-            label="Decline"
-            onPress={handleDecline}
-            variant="danger"
-            disabled={isBusy}
-            loading={isBusy}
-            flex={1}
-          />
-          <AppButton
-            label="Accept"
-            onPress={handleAccept}
-            icon={<Feather name="check" size={20} color={colors.primaryForeground} />}
-            variant="success"
+            label="Accept Request"
+            onPress={onAccept}
+            icon={<ArrowRight size={20} color="#030303" strokeWidth={2.5} />}
+            variant="primary"
             disabled={isBusy}
             loading={isBusy}
             flex={2}
@@ -196,27 +176,46 @@ export function DispatchModal({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 24,
+    paddingHorizontal: 28,
     paddingTop: 80,
-    paddingBottom: 40,
+    paddingBottom: 60,
     justifyContent: "space-between",
   },
   header: {
     alignItems: "center",
     gap: 12,
   },
+  headerIconBg: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 8,
+    shadowColor: "#F5B800",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+  },
   title: {
-    fontSize: 22,
-    fontFamily: "Inter_700Bold",
+    fontSize: 26,
     textAlign: "center",
+    letterSpacing: -0.5,
   },
   timerSection: {
     alignItems: "center",
-    gap: 12,
+    gap: 8,
   },
   countdown: {
-    fontSize: 48,
-    fontFamily: "Inter_700Bold",
+    fontSize: 92,
+    lineHeight: 92,
+    letterSpacing: -4,
+  },
+  timerLabel: {
+    fontSize: 10,
+    letterSpacing: 2,
+    opacity: 0.6,
+    marginBottom: 16,
   },
   progressTrack: {
     width: "100%",
@@ -226,50 +225,50 @@ const styles = StyleSheet.create({
   },
   progressBar: {
     height: "100%",
-    borderRadius: 3,
   },
   detailsCard: {
-    borderRadius: theme.radius.xl,
-    padding: theme.spacing.xl,
-    marginBottom: 0,
+    padding: 24,
+    borderRadius: 24,
   },
-  detailRow: {
+  detailHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 16,
+  },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  customerName: {
+    fontSize: 20,
+  },
+  fareBadge: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 14,
+  },
+  fareText: {
+    fontSize: 22,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    marginBottom: 20,
+  },
+  distanceBadge: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    marginBottom: 4,
+    marginTop: 20,
   },
-  detailLabel: {
+  distanceText: {
     fontSize: 13,
-    fontFamily: "Inter_400Regular",
-  },
-  detailValue: {
-    fontSize: 15,
-    fontFamily: "Inter_600SemiBold",
-    marginLeft: "auto",
-  },
-  separator: {
-    height: 1,
-    marginVertical: 14,
-  },
-  statsRow: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-  },
-  stat: {
-    alignItems: "center",
-    gap: 4,
-  },
-  statLabel: {
-    fontSize: 12,
-    fontFamily: "Inter_400Regular",
-  },
-  statValue: {
-    fontSize: 20,
-    fontFamily: "Inter_700Bold",
   },
   actions: {
     flexDirection: "row",
-    gap: theme.spacing.md,
+    alignItems: "center",
+    gap: 16,
   },
 });

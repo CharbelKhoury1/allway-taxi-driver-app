@@ -1,8 +1,10 @@
 import { Feather } from "@expo/vector-icons";
+import { SymbolView } from "expo-symbols";
 import React, { useEffect, useState } from "react";
 import {
   Linking,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -13,6 +15,7 @@ import Animated, {
   useSharedValue,
   withRepeat,
   withTiming,
+  interpolate,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -24,17 +27,11 @@ import { PowerButton } from "@/components/PowerButton";
 import { StatusPanel } from "@/components/StatusPanel";
 import { TripCard } from "@/components/TripCard";
 import { WeeklyChart } from "@/components/WeeklyChart";
+import { GlassHeader } from "@/components/GlassHeader";
 import { theme } from "@/constants/theme";
 import { useAuth } from "@/contexts/AuthContext";
 import { useShift } from "@/contexts/ShiftContext";
 import { useColors } from "@/hooks/useColors";
-
-function getGreeting(): string {
-  const hour = new Date().getHours();
-  if (hour < 12) return "Good morning";
-  if (hour < 17) return "Good afternoon";
-  return "Good evening";
-}
 
 function formatShiftTime(startTime: number | null): string {
   if (!startTime) return "00:00:00";
@@ -48,18 +45,26 @@ function formatShiftTime(startTime: number | null): string {
 function RadarSweep() {
   const colors = useColors();
   const rotation = useSharedValue(0);
+  const pulse = useSharedValue(0);
 
   useEffect(() => {
-    rotation.value = withRepeat(withTiming(360, { duration: 3000 }), -1, false);
+    rotation.value = withRepeat(withTiming(360, { duration: 4000 }), -1, false);
+    pulse.value = withRepeat(withTiming(1, { duration: 2500 }), -1, true);
   }, []);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ rotate: `${rotation.value}deg` }],
   }));
 
+  const pulseStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: interpolate(pulse.value, [0, 1], [1, 1.4]) }],
+    opacity: interpolate(pulse.value, [0, 1], [0.3, 0]),
+  }));
+
   return (
     <View style={styles.radarContainer}>
-      <View style={[styles.radarBg, { borderColor: colors.textTertiary }]}>
+      <View style={[styles.radarBg, { borderColor: "rgba(255,184,0,0.15)" }]}>
+        <Animated.View style={[styles.radarPulse, pulseStyle, { backgroundColor: colors.primary }]} />
         <Animated.View
           style={[
             styles.radarSweep,
@@ -67,9 +72,10 @@ function RadarSweep() {
             { borderTopColor: colors.primary },
           ]}
         />
+        <View style={[styles.radarCenter, { backgroundColor: colors.primary }]} />
       </View>
-      <Text style={[styles.radarText, { color: colors.textSecondary }]}>
-        Scanning for trips...
+      <Text style={[styles.radarText, { color: colors.textTertiary, fontFamily: theme.font.medium }]}>
+        Live trip scanning active...
       </Text>
     </View>
   );
@@ -113,77 +119,80 @@ export default function HomeScreen() {
     return () => clearInterval(timer);
   }, [isOnline, shiftStartTime]);
 
-  const firstName = driver?.full_name?.split(" ")[0] || "Driver";
   const hasActiveTrip = !!activeTrip;
 
   const handlePowerPress = () => {
-    if (isOnline) {
-      goOffline();
-    } else {
-      goOnline();
-    }
-  };
-
-  const handleAcceptTrip = async (tripId: string) => {
-    await acceptBroadcastTrip(tripId);
+    if (isOnline) goOffline();
+    else goOnline();
   };
 
   const webTopPadding = Platform.OS === "web" ? 67 : 0;
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
+      <GlassHeader />
+      
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={[
           styles.content,
-          { paddingTop: insets.top + 16 + webTopPadding, paddingBottom: 100 },
+          { paddingTop: insets.top + 100 + webTopPadding, paddingBottom: 150 },
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={[styles.greeting, { color: colors.textSecondary }]}>
-          {getGreeting()}, {firstName}
-        </Text>
-
         <AppCard
           style={[
-            styles.shiftCard,
+            styles.mainShiftCard,
             {
-              borderColor: isOnline ? colors.success : colors.cardBorder,
+              backgroundColor: isOnline ? "transparent" : "rgba(255, 255, 255, 0.02)",
+              borderColor: isOnline ? "rgba(255, 184, 0, 0.2)" : colors.cardBorder,
             },
           ]}
         >
-          <View style={styles.shiftInfo}>
-            <Text
-              style={[
-                styles.shiftStatus,
-                {
-                  color: isOnline
-                    ? colors.success
-                    : isLocating
-                      ? colors.warning
-                      : colors.primary,
-                },
-              ]}
-            >
-              {isOnline ? "ON SHIFT" : isLocating ? "LOCATING..." : "OFFLINE"}
-            </Text>
-            {isOnline && (
-              <Text style={[styles.shiftTimer, { color: colors.foreground }]}>
-                {shiftDisplay}
+          <View style={styles.shiftHeader}>
+            <View>
+              <Text style={[styles.statusLabel, { color: isOnline ? colors.success : colors.textTertiary, fontFamily: theme.font.displayBold }]}>
+                {isOnline ? "OPERATIONAL" : isLocating ? "INITIALIZING..." : "SYSTEM STANDBY"}
               </Text>
-            )}
-            {hasActiveTrip && (
-              <Text style={[styles.disabledHint, { color: colors.textTertiary }]}>
-                Complete trip first
-              </Text>
-            )}
+              {isOnline ? (
+                <Text style={[styles.shiftTimer, { color: colors.foreground, fontFamily: theme.font.displayBold }]}>
+                  {shiftDisplay}
+                </Text>
+              ) : (
+                <Text style={[styles.offlineText, { color: colors.textSecondary, fontFamily: theme.font.medium }]}>
+                  Go online to receive jobs
+                </Text>
+              )}
+            </View>
+            <PowerButton
+              isOnline={isOnline}
+              isLocating={isLocating}
+              disabled={hasActiveTrip}
+              onPress={handlePowerPress}
+            />
           </View>
-          <PowerButton
-            isOnline={isOnline}
-            isLocating={isLocating}
-            disabled={hasActiveTrip}
-            onPress={handlePowerPress}
-          />
+
+          {isOnline && (
+            <View style={styles.quickStats}>
+              <View style={styles.quickStatItem}>
+                {Platform.OS === "ios" ? (
+                  <SymbolView name="bolt.fill" size={14} tintColor={colors.primary} />
+                ) : (
+                  <Feather name="zap" size={14} color={colors.primary} />
+                )}
+                <Text style={[styles.quickStatText, { color: colors.textSecondary, fontFamily: theme.font.medium }]}>Hot Area</Text>
+              </View>
+              <View style={styles.statDot} />
+              <View style={styles.quickStatItem}>
+                {Platform.OS === "ios" ? (
+                  <SymbolView name="shield.fill" size={14} tintColor={colors.success} />
+                ) : (
+                  <Feather name="shield" size={14} color={colors.success} />
+                )}
+                <Text style={[styles.quickStatText, { color: colors.textSecondary, fontFamily: theme.font.medium }]}>Secure</Text>
+              </View>
+            </View>
+          )}
         </AppCard>
 
         {isOnline && activeTrip && (
@@ -195,50 +204,62 @@ export default function HomeScreen() {
             {availableTrips.length === 0 ? (
               <RadarSweep />
             ) : (
-              <View>
-                <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
-                  Available Requests ({availableTrips.length})
-                </Text>
+              <View style={styles.tripsSection}>
+                <View style={styles.sectionHeader}>
+                  <Text style={[styles.sectionTitle, { color: colors.foreground, fontFamily: theme.font.displayBold }]}>
+                    Incoming Jobs
+                  </Text>
+                  <View style={[styles.badge, { backgroundColor: colors.primary }]}>
+                    <Text style={[styles.badgeText, { color: "#030303", fontFamily: theme.font.displayBold }]}>
+                      {availableTrips.length}
+                    </Text>
+                  </View>
+                </View>
                 {availableTrips.map((trip) => (
-                  <TripCard
-                    key={trip.id}
-                    trip={trip}
-                    onAccept={handleAcceptTrip}
-                  />
+                  <TripCard key={trip.id} trip={trip} onAccept={acceptBroadcastTrip} />
                 ))}
               </View>
             )}
           </View>
         )}
 
-        <WeeklyChart />
+        {!hasActiveTrip && (
+          <View style={styles.chartWrapper}>
+            <WeeklyChart />
+          </View>
+        )}
 
         {lastError ? (
           <AppCard style={[styles.errorCard, { borderColor: colors.destructive }]}>
-            <Text style={[styles.errorText, { color: colors.destructive }]}>{lastError}</Text>
-            <AppButton
-              label="Dismiss"
-              onPress={clearError}
-              variant="secondary"
-            />
+            <Text style={[styles.errorText, { color: colors.destructive, fontFamily: theme.font.medium }]}>{lastError}</Text>
+            <AppButton label="Dismiss" onPress={clearError} variant="secondary" />
           </AppCard>
         ) : null}
 
-        <View style={styles.quickActions}>
-          <AppButton
-            label="Call Support"
+        <View style={styles.actionGrid}>
+          <Pressable
             onPress={() => Linking.openURL("tel:+96170123456")}
-            icon={<Feather name="phone-call" size={20} color={colors.foreground} />}
-            variant="secondary"
-            flex={1}
-          />
-          <AppButton
-            label="Report Issue"
+            style={({ pressed }) => [styles.heroAction, { backgroundColor: colors.card, opacity: pressed ? 0.8 : 1 }]}
+          >
+            {Platform.OS === "ios" ? (
+              <SymbolView name="phone.fill" size={20} tintColor={colors.primary} />
+            ) : (
+              <Feather name="phone-call" size={20} color={colors.primary} />
+            )}
+            <Text style={[styles.heroActionText, { color: colors.foreground, fontFamily: theme.font.semibold }]}>Dispatch Support</Text>
+          </Pressable>
+          
+          <Pressable
             onPress={() => Linking.openURL("mailto:support@allwaytaxi.com")}
-            icon={<Feather name="mail" size={20} color={colors.foreground} />}
-            variant="secondary"
-            flex={1}
-          />
+            style={({ pressed }) => [styles.heroAction, { backgroundColor: colors.card, opacity: pressed ? 0.8 : 1 }]}
+          >
+            {Platform.OS === "ios" ? (
+              <SymbolView name="info.circle.fill" size={20} tintColor={colors.textSecondary} />
+            ) : (
+              <Feather name="info" size={20} color={colors.textSecondary} />
+            )}
+            <Text style={[styles.heroActionText, { color: colors.foreground, fontFamily: theme.font.semibold }]}>Technical Issue</Text>
+          </Pressable>
         </View>
 
         {isOnline && (
@@ -270,77 +291,137 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 20,
   },
-  greeting: {
-    fontSize: 15,
-    fontFamily: "Inter_400Regular",
-    marginBottom: 16,
+  mainShiftCard: {
+    borderRadius: 28,
+    padding: 24,
+    marginBottom: 24,
+    borderWidth: 1.5,
   },
-  shiftCard: {
+  shiftHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    borderRadius: theme.radius.xl,
-    padding: theme.spacing.xl,
-    marginBottom: 16,
   },
-  shiftInfo: {
-    gap: 4,
-  },
-  shiftStatus: {
-    fontSize: 13,
-    fontFamily: "Inter_700Bold",
-    letterSpacing: 1,
+  statusLabel: {
+    fontSize: 10,
+    letterSpacing: 2,
+    textTransform: "uppercase",
+    opacity: 0.8,
   },
   shiftTimer: {
-    fontSize: 28,
-    fontFamily: "Inter_700Bold",
+    fontSize: 36,
+    letterSpacing: -1,
+    marginTop: 4,
   },
-  disabledHint: {
-    fontSize: 11,
-    fontFamily: "Inter_400Regular",
+  offlineText: {
+    fontSize: 15,
+    marginTop: 4,
+    opacity: 0.6,
+  },
+  quickStats: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginTop: 20,
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255, 255, 255, 0.05)",
+  },
+  quickStatItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  quickStatText: {
+    fontSize: 12,
+  },
+  statDot: {
+    width: 3,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+  },
+  tripsSection: {
+    marginTop: 8,
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginBottom: 20,
+    paddingLeft: 4,
   },
   sectionTitle: {
+    fontSize: 20,
+    letterSpacing: -0.5,
+  },
+  badge: {
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  badgeText: {
     fontSize: 13,
-    fontFamily: "Inter_600SemiBold",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginBottom: 12,
   },
   radarContainer: {
     alignItems: "center",
-    paddingVertical: 32,
-    gap: 16,
+    paddingVertical: 60,
+    gap: 24,
   },
   radarBg: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 140,
+    height: 140,
+    borderRadius: 70,
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
-    overflow: "hidden",
+  },
+  radarPulse: {
+    position: "absolute",
+    width: 140,
+    height: 140,
+    borderRadius: 70,
   },
   radarSweep: {
-    width: 40,
-    height: 40,
-    borderTopWidth: 3,
-    borderRadius: 20,
+    width: 70,
+    height: 70,
+    borderTopWidth: 4,
+    borderRadius: 35,
     position: "absolute",
+  },
+  radarCenter: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
   },
   radarText: {
     fontSize: 14,
-    fontFamily: "Inter_400Regular",
+    letterSpacing: 0.5,
   },
-  quickActions: {
+  chartWrapper: {
+    opacity: 0.5,
+    marginTop: 12,
+  },
+  actionGrid: {
+    gap: 12,
+    marginTop: 24,
+    marginBottom: 16,
+  },
+  heroAction: {
     flexDirection: "row",
-    gap: theme.spacing.md,
-    marginBottom: 12,
+    alignItems: "center",
+    gap: 16,
+    padding: 18,
+    borderRadius: 18,
+  },
+  heroActionText: {
+    fontSize: 15,
   },
   errorCard: {
-    gap: theme.spacing.sm,
+    gap: 12,
+    marginTop: 20,
   },
   errorText: {
-    fontSize: 13,
-    fontFamily: "Inter_500Medium",
+    fontSize: 14,
   },
 });

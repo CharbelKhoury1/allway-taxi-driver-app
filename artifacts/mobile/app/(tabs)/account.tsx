@@ -12,6 +12,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { LinearGradient } from "expo-linear-gradient";
 
 import { AppButton } from "@/components/ui/AppButton";
 import { AppCard } from "@/components/ui/AppCard";
@@ -57,20 +58,15 @@ export default function AccountScreen() {
 
   const fetchEarnings = async (isManualRefresh = false) => {
     if (!driver) return;
-    if (isManualRefresh) {
-      setRefreshing(true);
-    } else {
-      setEarningsLoading(true);
-    }
+    if (isManualRefresh) setRefreshing(true);
+    else setEarningsLoading(true);
     setEarningsError(null);
     const now = new Date();
 
     const todayStart = new Date(now);
     todayStart.setHours(0, 0, 0, 0);
-
     const weekStart = new Date(now);
     weekStart.setDate(weekStart.getDate() - 7);
-
     const monthStart = new Date(now);
     monthStart.setDate(monthStart.getDate() - 30);
 
@@ -97,10 +93,8 @@ export default function AccountScreen() {
     data.forEach((trip) => {
       const fare = Number(trip.fare_usd) || 0;
       const completedAt = new Date(trip.completed_at);
-
       result.month.amount += fare;
       result.month.trips += 1;
-
       if (completedAt >= weekStart) {
         result.week.amount += fare;
         result.week.trips += 1;
@@ -145,9 +139,7 @@ export default function AccountScreen() {
   };
 
   const handleLogout = async () => {
-    if (isOnline) {
-      await goOffline();
-    }
+    if (isOnline) await goOffline();
     await logout();
     router.replace("/login");
   };
@@ -168,68 +160,65 @@ export default function AccountScreen() {
       style={[styles.screen, { backgroundColor: colors.background }]}
       contentContainerStyle={[
         styles.content,
-        { paddingTop: insets.top + 16 + webTopPadding, paddingBottom: 100 },
+        { paddingTop: insets.top + 24 + webTopPadding, paddingBottom: 150 },
       ]}
       showsVerticalScrollIndicator={false}
       refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={() => fetchEarnings(true)}
-          tintColor={colors.primary}
-        />
+        <RefreshControl refreshing={refreshing} onRefresh={() => fetchEarnings(true)} tintColor={colors.primary} />
       }
     >
       <View style={styles.profileHero}>
-        <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
-          <Text style={styles.avatarText}>{initials}</Text>
-        </View>
-        <Text style={[styles.name, { color: colors.foreground }]}>
+        <LinearGradient
+          colors={[colors.primary, "#FFD700"]}
+          style={styles.avatar}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        >
+          <Text style={[styles.avatarText, { fontFamily: theme.font.displayBold }]}>{initials}</Text>
+        </LinearGradient>
+        <Text style={[styles.name, { color: colors.foreground, fontFamily: theme.font.displayBold }]}>
           {driver.full_name}
         </Text>
-        <Text style={[styles.carInfo, { color: colors.textSecondary }]}>
-          {driver.car_model} - {driver.plate}
+        <Text style={[styles.carInfo, { color: colors.textSecondary, fontFamily: theme.font.medium }]}>
+          {driver.car_model} • {driver.plate}
         </Text>
         <View style={styles.badges}>
-          <View style={[styles.badge, { backgroundColor: colors.muted }]}>
+          <View style={[styles.badge, { backgroundColor: "rgba(255, 255, 255, 0.05)" }]}>
             <Feather name="star" size={12} color={colors.primary} />
-            <Text style={[styles.badgeText, { color: colors.foreground }]}>
+            <Text style={[styles.badgeText, { color: colors.foreground, fontFamily: theme.font.semibold }]}>
               {Number(driver.rating || 0).toFixed(2)}
             </Text>
           </View>
-          <View style={[styles.badge, { backgroundColor: colors.muted }]}>
-            <Feather name="map" size={12} color={colors.success} />
-            <Text style={[styles.badgeText, { color: colors.foreground }]}>
-              {driver.total_trips || 0} trips
+          <View style={[styles.badge, { backgroundColor: "rgba(255, 255, 255, 0.05)" }]}>
+            <Feather name="trending-up" size={12} color={colors.success} />
+            <Text style={[styles.badgeText, { color: colors.foreground, fontFamily: theme.font.semibold }]}>
+              Elite Status
             </Text>
           </View>
         </View>
       </View>
 
-      <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
-        Earnings
+      <Text style={[styles.sectionTitle, { color: colors.textTertiary, fontFamily: theme.font.displayBold }]}>
+        PERFORMANCE
       </Text>
+      
       {earningsLoading ? (
-        <StateView mode="loading" title="Loading earnings..." />
-      ) : earningsError ? (
-        <StateView mode="error" title="Unable to load earnings" description={earningsError} onRetry={() => fetchEarnings()} />
+        <StateView mode="loading" title="Analyzing earnings..." />
       ) : (
         <View style={styles.earningsRow}>
           {[
-            { label: "Today", data: earnings.today },
-            { label: "7 Days", data: earnings.week },
-            { label: "30 Days", data: earnings.month },
+            { label: "TODAY", data: earnings.today },
+            { label: "WEEK", data: earnings.week },
+            { label: "MONTH", data: earnings.month },
           ].map((item) => (
-            <AppCard
-              key={item.label}
-              style={styles.earningsCard}
-            >
-              <Text style={[styles.earningsAmount, { color: colors.primary }]}>
+            <AppCard key={item.label} style={styles.earningsCard}>
+              <Text style={[styles.earningsAmount, { color: colors.primary, fontFamily: theme.font.displayBold }]}>
                 ${item.data.amount.toFixed(0)}
               </Text>
-              <Text style={[styles.earningsTripCount, { color: colors.textSecondary }]}>
+              <Text style={[styles.earningsTripCount, { color: colors.textSecondary, fontFamily: theme.font.medium }]}>
                 {item.data.trips} trips
               </Text>
-              <Text style={[styles.earningsLabel, { color: colors.textTertiary }]}>
+              <Text style={[styles.earningsLabel, { color: colors.textTertiary, fontFamily: theme.font.medium }]}>
                 {item.label}
               </Text>
             </AppCard>
@@ -237,97 +226,67 @@ export default function AccountScreen() {
         </View>
       )}
 
-      <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
-        Vehicle Details
+      <Text style={[styles.sectionTitle, { color: colors.textTertiary, fontFamily: theme.font.displayBold }]}>
+        MANAGEMENT
       </Text>
-      <AppCard style={styles.detailsCard}>
-        {[
-          { label: "Car Model", value: driver.car_model },
-          { label: "Plate Number", value: driver.plate },
-          { label: "All-time Trips", value: String(driver.total_trips || 0) },
-          { label: "Star Rating", value: Number(driver.rating || 0).toFixed(2) },
-        ].map((item, i) => (
-          <View key={item.label}>
-            <View style={styles.detailRow}>
-              <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>
-                {item.label}
-              </Text>
-              <Text style={[styles.detailValue, { color: colors.foreground }]}>
-                {item.value}
-              </Text>
-            </View>
-            {i < 3 && <View style={[styles.divider, { backgroundColor: colors.border }]} />}
-          </View>
-        ))}
-      </AppCard>
-
+      
       <Pressable
         onPress={() => setShowPinForm(!showPinForm)}
         style={[
-          styles.changePinToggle,
+          styles.menuItem,
           { backgroundColor: colors.card, borderColor: colors.cardBorder },
         ]}
       >
-        <View style={styles.changePinRow}>
-          <Feather name="lock" size={18} color={colors.textSecondary} />
-          <Text style={[styles.changePinLabel, { color: colors.foreground }]}>
-            Change PIN
+        <View style={styles.menuItemRow}>
+          <View style={[styles.iconBox, { backgroundColor: "rgba(245, 184, 0, 0.1)" }]}>
+            <Feather name="lock" size={18} color={colors.primary} />
+          </View>
+          <Text style={[styles.menuItemLabel, { color: colors.foreground, fontFamily: theme.font.semibold }]}>
+            Change Security PIN
           </Text>
         </View>
-        <Feather
-          name={showPinForm ? "chevron-up" : "chevron-down"}
-          size={18}
-          color={colors.textTertiary}
-        />
+        <Feather name={showPinForm ? "chevron-up" : "chevron-down"} size={18} color={colors.textTertiary} />
       </Pressable>
 
       {showPinForm && (
         <AppCard style={styles.pinForm}>
           <View style={styles.pinInput}>
-            <Text style={[styles.pinLabel, { color: colors.textSecondary }]}>Current PIN</Text>
+            <Text style={[styles.pinLabel, { color: colors.textSecondary, fontFamily: theme.font.medium }]}>Current PIN</Text>
             <TextInput
-              style={[styles.textInput, { color: colors.foreground, backgroundColor: colors.input, borderColor: colors.border }]}
+              style={[styles.textInput, { color: colors.foreground, backgroundColor: "rgba(255, 255, 255, 0.03)", borderColor: colors.cardBorder }]}
               secureTextEntry
               keyboardType="number-pad"
               maxLength={6}
               value={currentPin}
               onChangeText={setCurrentPin}
               placeholderTextColor={colors.textTertiary}
-              placeholder="Enter current PIN"
             />
           </View>
           <View style={styles.pinInput}>
-            <Text style={[styles.pinLabel, { color: colors.textSecondary }]}>New PIN</Text>
+            <Text style={[styles.pinLabel, { color: colors.textSecondary, fontFamily: theme.font.medium }]}>New PIN</Text>
             <TextInput
-              style={[styles.textInput, { color: colors.foreground, backgroundColor: colors.input, borderColor: colors.border }]}
+              style={[styles.textInput, { color: colors.foreground, backgroundColor: "rgba(255, 255, 255, 0.03)", borderColor: colors.cardBorder }]}
               secureTextEntry
               keyboardType="number-pad"
               maxLength={6}
               value={newPin}
               onChangeText={setNewPin}
               placeholderTextColor={colors.textTertiary}
-              placeholder="Enter new PIN (4-6 digits)"
             />
           </View>
-          {pinError ? (
-            <Text style={[styles.pinError, { color: colors.destructive }]}>{pinError}</Text>
-          ) : null}
-          <AppButton
-            label="Update PIN"
-            onPress={handleChangePin}
-            loading={pinLoading}
-            disabled={pinLoading}
-            variant="primary"
-          />
+          {pinError ? <Text style={[styles.pinError, { color: colors.destructive }]}>{pinError}</Text> : null}
+          <AppButton label="Confirm Changes" onPress={handleChangePin} loading={pinLoading} disabled={pinLoading} />
         </AppCard>
       )}
 
-      <AppButton
-        label="Log Out"
-        onPress={handleLogout}
-        icon={<Feather name="log-out" size={18} color={colors.destructive} />}
-        variant="danger"
-      />
+      <View style={styles.footerActions}>
+        <AppButton
+          label="Secure Logout"
+          onPress={handleLogout}
+          icon={<Feather name="power" size={18} color={colors.destructive} />}
+          variant="ghost"
+        />
+      </View>
     </ScrollView>
   );
 }
@@ -341,142 +300,124 @@ const styles = StyleSheet.create({
   },
   profileHero: {
     alignItems: "center",
-    marginBottom: 24,
-    gap: 6,
+    marginBottom: 32,
+    gap: 8,
   },
   avatar: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+    width: 84,
+    height: 84,
+    borderRadius: 42,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 8,
+    marginBottom: 12,
   },
   avatarText: {
-    fontSize: 24,
-    fontFamily: "Inter_700Bold",
-    color: "#0D0D14",
+    fontSize: 28,
+    color: "#030303",
   },
   name: {
-    fontSize: 22,
-    fontFamily: "Inter_700Bold",
+    fontSize: 26,
+    letterSpacing: -0.5,
   },
   carInfo: {
-    fontSize: 14,
-    fontFamily: "Inter_400Regular",
+    fontSize: 15,
+    opacity: 0.8,
   },
   badges: {
     flexDirection: "row",
-    gap: 10,
-    marginTop: 8,
+    gap: 12,
+    marginTop: 12,
   },
   badge: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 16,
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
   },
   badgeText: {
     fontSize: 13,
-    fontFamily: "Inter_600SemiBold",
   },
   sectionTitle: {
-    fontSize: 12,
-    fontFamily: "Inter_600SemiBold",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginBottom: 10,
+    fontSize: 11,
+    letterSpacing: 2,
+    marginBottom: 16,
+    marginLeft: 4,
   },
   earningsRow: {
     flexDirection: "row",
-    gap: 10,
-    marginBottom: 20,
+    gap: 12,
+    marginBottom: 32,
   },
   earningsCard: {
     flex: 1,
     marginBottom: 0,
-    padding: 14,
-    alignItems: "center",
-    gap: 2,
+    padding: 16,
+    alignItems: "flex-start",
+    gap: 4,
+    backgroundColor: "rgba(255, 255, 255, 0.02)",
   },
   earningsAmount: {
-    fontSize: 20,
-    fontFamily: "Inter_700Bold",
+    fontSize: 22,
   },
   earningsTripCount: {
-    fontSize: 12,
-    fontFamily: "Inter_400Regular",
+    fontSize: 11,
   },
   earningsLabel: {
-    fontSize: 11,
-    fontFamily: "Inter_400Regular",
-    marginTop: 2,
+    fontSize: 9,
+    letterSpacing: 1,
+    opacity: 0.6,
+    marginTop: 8,
   },
-  detailsCard: {
-    marginBottom: 16,
-    padding: 16,
-  },
-  detailRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingVertical: 8,
-  },
-  detailLabel: {
-    fontSize: 14,
-    fontFamily: "Inter_400Regular",
-  },
-  detailValue: {
-    fontSize: 14,
-    fontFamily: "Inter_600SemiBold",
-  },
-  divider: {
-    height: 1,
-  },
-  changePinToggle: {
+  menuItem: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    borderRadius: 12,
+    borderRadius: 16,
     borderWidth: 1,
     padding: 16,
-    marginBottom: 8,
+    marginBottom: 12,
   },
-  changePinRow: {
+  menuItemRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 16,
   },
-  changePinLabel: {
+  iconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  menuItemLabel: {
     fontSize: 15,
-    fontFamily: "Inter_500Medium",
   },
   pinForm: {
-    marginBottom: 16,
-    padding: 16,
-    gap: 12,
+    marginBottom: 20,
+    padding: 20,
+    gap: 16,
   },
   pinInput: {
-    gap: 4,
+    gap: 8,
   },
   pinLabel: {
-    fontSize: 13,
-    fontFamily: "Inter_500Medium",
+    fontSize: 12,
+    opacity: 0.7,
   },
   textInput: {
-    height: 44,
-    borderRadius: 10,
+    height: 48,
+    borderRadius: 12,
     borderWidth: 1,
-    paddingHorizontal: 14,
-    fontSize: 15,
-    fontFamily: "Inter_400Regular",
+    paddingHorizontal: 16,
+    fontSize: 16,
   },
   pinError: {
     fontSize: 13,
-    fontFamily: "Inter_400Regular",
   },
-  logoutButton: {
-    marginTop: 12,
+  footerActions: {
+    marginTop: 40,
+    alignItems: "center",
   },
 });

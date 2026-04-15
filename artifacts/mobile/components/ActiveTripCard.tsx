@@ -1,4 +1,4 @@
-import { Feather } from "@expo/vector-icons";
+import { Phone, Navigation, Check } from "lucide-react-native";
 import React from "react";
 import {
   Linking,
@@ -6,6 +6,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 
 import { AppButton } from "@/components/ui/AppButton";
 import { AppCard } from "@/components/ui/AppCard";
@@ -22,7 +23,7 @@ interface ActiveTripCardProps {
 
 export function ActiveTripCard({ trip, onComplete }: ActiveTripCardProps) {
   const colors = useColors();
-  const customerName = trip.customers?.full_name || "Customer";
+  const customerName = trip.customers?.full_name || "Guest Passenger";
   const customerPhone = trip.customers?.phone || "";
 
   const openMaps = () => {
@@ -37,53 +38,66 @@ export function ActiveTripCard({ trip, onComplete }: ActiveTripCardProps) {
   };
 
   return (
-    <AppCard style={{ backgroundColor: "rgba(93,202,165,0.12)", borderColor: colors.success }}>
+    <AppCard style={{ backgroundColor: "rgba(93, 202, 165, 0.05)", borderColor: "rgba(93, 202, 165, 0.2)", borderRadius: 28, padding: 24 }}>
       <View style={styles.headerRow}>
-        <View style={[styles.badge, { backgroundColor: colors.success }]}>
-          <Text style={styles.badgeText}>ACTIVE TRIP</Text>
-        </View>
+        <LinearGradient
+          colors={[colors.success, "#4CAF50"]}
+          style={styles.badge}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+        >
+          <Text style={[styles.badgeText, { color: "#030303", fontFamily: theme.font.displayBold }]}>
+            MISSION ACTIVE
+          </Text>
+        </LinearGradient>
         {trip.fare_usd != null && (
-          <Text style={[styles.fare, { color: colors.primary }]}>
+          <Text style={[styles.fare, { color: colors.primary, fontFamily: theme.font.displayBold }]}>
             ${formatCurrency(trip.fare_usd)}
           </Text>
         )}
       </View>
 
       <View style={styles.customerRow}>
-        <Text style={[styles.customerName, { color: colors.foreground }]}>
-          {customerName}
-        </Text>
+        <View style={styles.customerInfo}>
+          <Text style={[styles.customerLabel, { color: colors.textTertiary, fontFamily: theme.font.displayBold }]}>PASSENGER</Text>
+          <Text style={[styles.customerName, { color: colors.foreground, fontFamily: theme.font.displayBold }]}>
+            {customerName}
+          </Text>
+        </View>
         {customerPhone ? (
           <AppButton
             label="Call"
             onPress={callCustomer}
-            icon={<Feather name="phone" size={16} color={colors.success} />}
-            variant="secondary"
+            icon={<Phone size={16} color={colors.success} />}
+            variant="ghost"
           />
         ) : null}
       </View>
+
+      <View style={styles.divider} />
 
       <View style={styles.addresses}>
         <TripRouteBlock
           pickupAddress={trip.pickup_address}
           dropoffAddress={trip.dropoff_address}
           numberOfLines={2}
+          label
         />
       </View>
 
       <View style={styles.actions}>
         <AppButton
-          label="Open Maps"
+          label="Navigator"
           onPress={openMaps}
-          icon={<Feather name="map-pin" size={18} color={colors.foreground} />}
+          icon={<Navigation size={18} color={colors.foreground} />}
           variant="secondary"
           flex={1}
         />
 
         <AppButton
-          label="Complete Trip"
+          label="Complete"
           onPress={onComplete}
-          icon={<Feather name="check-circle" size={18} color={colors.primaryForeground} />}
+          icon={<Check size={18} color="#030303" strokeWidth={3} />}
           variant="success"
           flex={1}
         />
@@ -97,38 +111,47 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: theme.spacing.md,
+    marginBottom: 20,
   },
   badge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 10,
   },
   badgeText: {
-    fontSize: 11,
-    fontFamily: "Inter_700Bold",
-    color: "#0D0D14",
-    letterSpacing: 0.5,
+    fontSize: 10,
+    letterSpacing: 2,
   },
   fare: {
-    fontSize: 20,
-    fontFamily: "Inter_700Bold",
+    fontSize: 24,
+    letterSpacing: -1,
   },
   customerRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: theme.spacing.md,
+    marginBottom: 24,
+  },
+  customerInfo: {
+    gap: 4,
+  },
+  customerLabel: {
+    fontSize: 9,
+    letterSpacing: 1.5,
   },
   customerName: {
-    fontSize: 18,
-    fontFamily: "Inter_600SemiBold",
+    fontSize: 20,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    marginBottom: 24,
   },
   addresses: {
-    marginBottom: theme.spacing.md,
+    marginBottom: 24,
   },
   actions: {
     flexDirection: "row",
-    gap: theme.spacing.sm,
+    gap: 12,
   },
 });

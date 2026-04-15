@@ -1,3 +1,4 @@
+import { LinearGradient } from "expo-linear-gradient";
 import React from "react";
 import {
   ActivityIndicator,
@@ -6,11 +7,12 @@ import {
   Text,
   View,
 } from "react-native";
+import * as Haptics from "expo-haptics";
 
 import { theme } from "@/constants/theme";
 import { useColors } from "@/hooks/useColors";
 
-type Variant = "primary" | "secondary" | "success" | "danger";
+type Variant = "primary" | "secondary" | "success" | "danger" | "ghost";
 
 interface AppButtonProps {
   label: string;
@@ -35,34 +37,53 @@ export function AppButton({
   const isDisabled = disabled || loading;
 
   const palette = {
-    primary: { bg: colors.primary, fg: colors.primaryForeground, border: colors.primary },
-    secondary: { bg: colors.muted, fg: colors.foreground, border: colors.cardBorder },
-    success: { bg: colors.success, fg: colors.primaryForeground, border: colors.success },
+    primary: { bg: colors.primary, fg: "#030303", border: "transparent" },
+    secondary: { bg: colors.secondary, fg: colors.foreground, border: colors.cardBorder },
+    success: { bg: colors.success, fg: "#030303", border: "transparent" },
     danger: { bg: "transparent", fg: colors.destructive, border: colors.destructive },
+    ghost: { bg: "transparent", fg: colors.textSecondary, border: "transparent" },
   }[variant];
+
+  const handlePress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onPress();
+  };
+
+  const Content = () => (
+    <View style={styles.content}>
+      {icon}
+      <Text style={[styles.text, { color: palette.fg, fontFamily: theme.font.displayBold }]}>{label}</Text>
+    </View>
+  );
 
   return (
     <Pressable
-      onPress={onPress}
+      onPress={handlePress}
       disabled={isDisabled}
       style={({ pressed }) => [
         styles.button,
         {
-          backgroundColor: palette.bg,
+          backgroundColor: variant === "primary" ? "transparent" : palette.bg,
           borderColor: palette.border,
           opacity: isDisabled ? 0.6 : 1,
-          transform: [{ scale: pressed ? 0.97 : 1 }],
+          transform: [{ scale: pressed ? 0.98 : 1 }],
           flex,
         },
       ]}
     >
+      {variant === "primary" ? (
+        <LinearGradient
+          colors={["#F5B800", "#FFD700"]}
+          style={StyleSheet.absoluteFill}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        />
+      ) : null}
+      
       {loading ? (
         <ActivityIndicator color={palette.fg} />
       ) : (
-        <View style={styles.content}>
-          {icon}
-          <Text style={[styles.text, { color: palette.fg }]}>{label}</Text>
-        </View>
+        <Content />
       )}
     </Pressable>
   );
@@ -70,13 +91,14 @@ export function AppButton({
 
 const styles = StyleSheet.create({
   button: {
-    minHeight: 44,
+    minHeight: 48,
     borderRadius: theme.radius.md,
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: theme.spacing.lg,
     paddingVertical: theme.spacing.sm,
+    overflow: "hidden",
   },
   content: {
     flexDirection: "row",
@@ -85,7 +107,7 @@ const styles = StyleSheet.create({
     gap: theme.spacing.sm,
   },
   text: {
-    fontSize: theme.typography.bodyLg,
-    fontFamily: "Inter_700Bold",
+    fontSize: 15,
+    letterSpacing: 0.3,
   },
 });

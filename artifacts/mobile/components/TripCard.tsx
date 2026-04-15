@@ -1,4 +1,4 @@
-import { Feather } from "@expo/vector-icons";
+import { ChevronRight, Check } from "lucide-react-native";
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 
@@ -20,18 +20,21 @@ export function TripCard({ trip, onAccept }: TripCardProps) {
   const distance = formatDistanceKm(trip.distance_km);
 
   return (
-    <AppCard>
+    <AppCard style={styles.card}>
       <View style={styles.header}>
         <View style={styles.fareContainer}>
-          <Text style={[styles.fare, { color: colors.primary }]}>
-            ${formatCurrency(trip.fare_usd)}
+          <Text style={[styles.fare, { color: colors.primary, fontFamily: theme.font.displayBold }]}>
+            ${formatCurrency(trip.fare_usd || 0)}
           </Text>
-          {distance ? (
-            <Text style={[styles.distance, { color: colors.textSecondary }]}>
-              {distance}
-            </Text>
-          ) : null}
+          {distance && (
+            <View style={[styles.distanceBadge, { backgroundColor: "rgba(255, 255, 255, 0.05)" }]}>
+              <Text style={[styles.distance, { color: colors.textSecondary, fontFamily: theme.font.medium }]}>
+                {distance}
+              </Text>
+            </View>
+          )}
         </View>
+        <ChevronRight size={20} color={colors.textTertiary} />
       </View>
 
       <View style={styles.addresses}>
@@ -45,7 +48,7 @@ export function TripCard({ trip, onAccept }: TripCardProps) {
       <AppButton
         label="Accept"
         onPress={() => onAccept(trip.id)}
-        icon={<Feather name="check" size={18} color={colors.primaryForeground} />}
+        icon={<Check size={18} color="#030303" strokeWidth={3} />}
         variant="primary"
       />
     </AppCard>
@@ -53,26 +56,35 @@ export function TripCard({ trip, onAccept }: TripCardProps) {
 }
 
 const styles = StyleSheet.create({
+  card: {
+    marginBottom: 16,
+    padding: 20,
+    borderRadius: 24,
+  },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: theme.spacing.md,
+    marginBottom: 16,
   },
   fareContainer: {
     flexDirection: "row",
-    alignItems: "baseline",
-    gap: theme.spacing.sm,
+    alignItems: "center",
+    gap: 12,
   },
   fare: {
-    fontSize: 22,
-    fontFamily: "Inter_700Bold",
+    fontSize: 24,
+    letterSpacing: -0.5,
+  },
+  distanceBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
   },
   distance: {
-    fontSize: 14,
-    fontFamily: "Inter_400Regular",
+    fontSize: 12,
   },
   addresses: {
-    marginBottom: theme.spacing.md,
+    marginBottom: 20,
   },
 });

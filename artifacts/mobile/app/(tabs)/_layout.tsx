@@ -1,10 +1,12 @@
 import { BlurView } from "expo-blur";
 import { Tabs } from "expo-router";
-import { Feather } from "@expo/vector-icons";
+import { LayoutGrid, ClipboardList, UserRound } from "lucide-react-native";
+import { SymbolView } from "expo-symbols";
 import React from "react";
 import { Platform, StyleSheet, View } from "react-native";
 
 import { useColors } from "@/hooks/useColors";
+import { theme } from "@/constants/theme";
 
 export default function TabLayout() {
   const colors = useColors();
@@ -15,28 +17,35 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.mutedForeground,
+        tabBarInactiveTintColor: colors.textTertiary,
         headerShown: false,
+        tabBarLabelStyle: {
+          fontFamily: theme.font.displayBold,
+          fontSize: 10,
+          marginTop: 2,
+        },
         tabBarStyle: {
           position: "absolute",
-          backgroundColor: isIOS ? "transparent" : colors.background,
-          borderTopWidth: isWeb ? 1 : 0,
-          borderTopColor: colors.border,
+          backgroundColor: isIOS ? "transparent" : "#030303",
+          borderTopWidth: 1,
+          borderTopColor: "rgba(255, 255, 255, 0.08)",
           elevation: 0,
-          ...(isWeb ? { height: 84 } : {}),
+          height: isWeb ? 84 : 88,
+          paddingBottom: isIOS ? 30 : 12,
+          paddingTop: 12,
         },
         tabBarBackground: () =>
           isIOS ? (
             <BlurView
-              intensity={100}
+              intensity={80}
               tint="dark"
               style={StyleSheet.absoluteFill}
             />
-          ) : isWeb ? (
+          ) : !isWeb ? (
             <View
               style={[
                 StyleSheet.absoluteFill,
-                { backgroundColor: colors.background },
+                { backgroundColor: "#030303" },
               ]}
             />
           ) : null,
@@ -45,18 +54,34 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: "Home",
-          tabBarIcon: ({ color }) => (
-            <Feather name="home" size={22} color={color} />
+          title: "Dashboard",
+          tabBarIcon: ({ color, focused }) => (
+            isIOS ? (
+              <SymbolView
+                name={focused ? "square.grid.2x2.fill" : "square.grid.2x2"}
+                size={22}
+                tintColor={color}
+              />
+            ) : (
+              <LayoutGrid size={22} color={color} strokeWidth={focused ? 2.5 : 2} />
+            )
           ),
         }}
       />
       <Tabs.Screen
         name="history"
         options={{
-          title: "History",
-          tabBarIcon: ({ color }) => (
-            <Feather name="clock" size={22} color={color} />
+          title: "Journal",
+          tabBarIcon: ({ color, focused }) => (
+            isIOS ? (
+              <SymbolView
+                name={focused ? "doc.text.fill" : "doc.text"}
+                size={22}
+                tintColor={color}
+              />
+            ) : (
+              <ClipboardList size={22} color={color} strokeWidth={focused ? 2.5 : 2} />
+            )
           ),
         }}
       />
@@ -64,8 +89,16 @@ export default function TabLayout() {
         name="account"
         options={{
           title: "Account",
-          tabBarIcon: ({ color }) => (
-            <Feather name="user" size={22} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            isIOS ? (
+              <SymbolView
+                name={focused ? "person.fill" : "person"}
+                size={22}
+                tintColor={color}
+              />
+            ) : (
+              <UserRound size={22} color={color} strokeWidth={focused ? 2.5 : 2} />
+            )
           ),
         }}
       />

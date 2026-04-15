@@ -59,7 +59,9 @@
     "zod-validation-error": "^3.4.0"
   },
   "dependencies": {
+    "@expo-google-fonts/plus-jakarta-sans": "^0.4.0",
     "@supabase/supabase-js": "^2.103.0",
-    "expo-keep-awake": "^15.0.8"
+    "expo-keep-awake": "^15.0.8",
+    "lucide-react-native": "^0.435.0"
   }
 }
