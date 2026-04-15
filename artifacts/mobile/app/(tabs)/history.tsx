@@ -91,7 +91,6 @@ export default function HistoryScreen() {
   });
 
   const totalTrips = trips.length;
-  const awaitingTrips = trips.filter((t) => ["pending", "dispatching", "accepted", "on_trip"].includes(t.status)).length;
   const totalEarned = trips.filter((t) => t.status === "completed").reduce((sum, t) => sum + (Number(t.fare_usd) || 0), 0);
 
   const filters: { label: string; value: FilterType }[] = [
@@ -105,17 +104,19 @@ export default function HistoryScreen() {
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
-      <View style={[styles.header, { paddingTop: insets.top + 24 + webTopPadding }]}>
-        <Text style={[styles.title, { color: colors.foreground, fontFamily: theme.font.displayBold }]}>Activity</Text>
+      <GlassHeader />
+      
+      <View style={[styles.header, { paddingTop: insets.top + 110 + webTopPadding }]}>
+        <Text style={[styles.title, { color: colors.foreground, fontFamily: theme.font.displayBold }]}>Activity History</Text>
 
         <View style={styles.summaryRow}>
           <AppCard style={styles.summaryCard}>
             <Text style={[styles.summaryValue, { color: colors.foreground, fontFamily: theme.font.displayBold }]}>{totalTrips}</Text>
-            <Text style={[styles.summaryLabel, { color: colors.textTertiary, fontFamily: theme.font.medium }]}>TRIPS</Text>
+            <Text style={[styles.summaryLabel, { color: colors.textTertiary, fontFamily: theme.font.medium }]}>TOTAL TRIPS</Text>
           </AppCard>
           <AppCard style={styles.summaryCard}>
             <Text style={[styles.summaryValue, { color: colors.primary, fontFamily: theme.font.displayBold }]}>${totalEarned.toFixed(0)}</Text>
-            <Text style={[styles.summaryLabel, { color: colors.textTertiary, fontFamily: theme.font.medium }]}>EARNED</Text>
+            <Text style={[styles.summaryLabel, { color: colors.textTertiary, fontFamily: theme.font.medium }]}>TOTAL REVENUE</Text>
           </AppCard>
         </View>
 

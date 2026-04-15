@@ -4,6 +4,7 @@ import {
   Inter_600SemiBold,
   Inter_700Bold,
 } from "@expo-google-fonts/inter";
+import {
   useFonts,
 } from "expo-font";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";

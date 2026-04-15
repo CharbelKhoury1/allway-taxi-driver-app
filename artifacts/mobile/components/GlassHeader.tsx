@@ -47,15 +47,31 @@ export function GlassHeader() {
             </View>
           </View>
           
-          <View style={[styles.stats, { backgroundColor: "rgba(255, 255, 255, 0.05)" }]}>
-            {Platform.OS === "ios" ? (
-              <SymbolView name="chart.line.uptrend.xyaxis" size={14} tintColor={colors.success} />
-            ) : (
-              <Feather name="trending-up" size={14} color={colors.success} />
-            )}
-            <Text style={[styles.statsText, { color: colors.foreground, fontFamily: theme.font.displayBold }]}>
-              {driver?.total_trips || 0}
-            </Text>
+          <View style={styles.right}>
+            <View style={styles.statsWrapper}>
+              {Platform.OS === "ios" && <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />}
+              <View style={[styles.stats, { borderColor: "rgba(255, 255, 255, 0.1)" }]}>
+                {Platform.OS === "ios" ? (
+                  <SymbolView name="chart.line.uptrend.xyaxis" size={12} tintColor={colors.success} />
+                ) : (
+                  <Feather name="trending-up" size={12} color={colors.success} />
+                )}
+                <Text style={[styles.statsText, { color: colors.foreground, fontFamily: theme.font.displayBold }]}>
+                  {driver?.total_trips || 0}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.actionWrapper}>
+              {Platform.OS === "ios" && <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />}
+              <TouchableOpacity style={[styles.actionButton, { borderColor: "rgba(255, 255, 255, 0.1)" }]}>
+                 {Platform.OS === "ios" ? (
+                  <SymbolView name="bell.fill" size={16} tintColor={colors.foreground} />
+                ) : (
+                  <Feather name="bell" size={16} color={colors.foreground} />
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </BlurView>
@@ -72,7 +88,7 @@ const styles = StyleSheet.create({
     zIndex: 100,
   },
   container: {
-    height: 88,
+    height: 84,
     marginHorizontal: 16,
     marginTop: 10,
     borderRadius: 24,
@@ -84,17 +100,17 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
   },
   left: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 14,
+    gap: 12,
   },
   avatarContainer: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     borderWidth: 1,
     padding: 2,
     backgroundColor: "rgba(255, 255, 255, 0.02)",
@@ -104,18 +120,18 @@ const styles = StyleSheet.create({
   avatar: {
     width: "100%",
     height: "100%",
-    borderRadius: 24,
+    borderRadius: 22,
   },
   logoAvatar: {
-    width: 36,
-    height: 36,
+    width: 32,
+    height: 32,
   },
   driverInfo: {
-    gap: 2,
+    gap: 1,
   },
   title: {
-    fontSize: 20,
-    letterSpacing: -0.8,
+    fontSize: 18,
+    letterSpacing: -0.5,
   },
   row: {
     flexDirection: "row",
@@ -127,16 +143,40 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     textTransform: "uppercase",
   },
-  stats: {
+  right: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 16,
+  },
+  statsWrapper: {
+    borderRadius: 14,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.05)",
+  },
+  stats: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
   statsText: {
-    fontSize: 16,
-    letterSpacing: -0.5,
+    fontSize: 13,
+    letterSpacing: -0.3,
+  },
+  actionWrapper: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.05)",
+  },
+  actionButton: {
+    width: "100%",
+    height: "100%",
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

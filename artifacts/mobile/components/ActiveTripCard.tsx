@@ -105,7 +105,7 @@ export function ActiveTripCard({ trip, onComplete }: ActiveTripCardProps) {
               <Feather name="navigation" size={18} color={colors.foreground} />
             )
           }
-          variant="secondary"
+          variant="glass"
           flex={1}
           height={60}
         />
@@ -115,12 +115,12 @@ export function ActiveTripCard({ trip, onComplete }: ActiveTripCardProps) {
           onPress={onComplete}
           icon={
             Platform.OS === "ios" ? (
-              <SymbolView name="checkmark.circle.fill" size={18} tintColor="#030303" />
+              <SymbolView name="checkmark.circle.fill" size={18} tintColor={colors.foreground} />
             ) : (
-              <Feather name="check" size={18} color="#030303" />
+              <Feather name="check" size={18} color={colors.foreground} />
             )
           }
-          variant="success"
+          variant="glassProminent"
           flex={1}
           height={60}
         />

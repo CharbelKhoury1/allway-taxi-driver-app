@@ -1,4 +1,4 @@
-import { Feather } from "@expo/vector-icons";
+import { Feather } from "@expo-vector-icons";
 import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
@@ -22,6 +22,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useShift } from "@/contexts/ShiftContext";
 import { useColors } from "@/hooks/useColors";
 import { supabase } from "@/lib/supabase";
+import { GlassHeader } from "@/components/GlassHeader";
 
 interface EarningsPeriod {
   amount: number;
@@ -49,7 +50,6 @@ export default function AccountScreen() {
   const [pinError, setPinError] = useState("");
   const [pinLoading, setPinLoading] = useState(false);
   const [earningsLoading, setEarningsLoading] = useState(true);
-  const [earningsError, setEarningsError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
@@ -60,7 +60,6 @@ export default function AccountScreen() {
     if (!driver) return;
     if (isManualRefresh) setRefreshing(true);
     else setEarningsLoading(true);
-    setEarningsError(null);
     const now = new Date();
 
     const todayStart = new Date(now);
@@ -78,7 +77,6 @@ export default function AccountScreen() {
       .gte("completed_at", monthStart.toISOString());
 
     if (error || !data) {
-      setEarningsError("Failed to load earnings.");
       setEarningsLoading(false);
       setRefreshing(false);
       return;
@@ -156,138 +154,150 @@ export default function AccountScreen() {
   const webTopPadding = Platform.OS === "web" ? 67 : 0;
 
   return (
-    <ScrollView
-      style={[styles.screen, { backgroundColor: colors.background }]}
-      contentContainerStyle={[
-        styles.content,
-        { paddingTop: insets.top + 24 + webTopPadding, paddingBottom: 150 },
-      ]}
-      showsVerticalScrollIndicator={false}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={() => fetchEarnings(true)} tintColor={colors.primary} />
-      }
-    >
-      <View style={styles.profileHero}>
-        <LinearGradient
-          colors={[colors.primary, "#FFD700"]}
-          style={styles.avatar}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        >
-          <Text style={[styles.avatarText, { fontFamily: theme.font.displayBold }]}>{initials}</Text>
-        </LinearGradient>
-        <Text style={[styles.name, { color: colors.foreground, fontFamily: theme.font.displayBold }]}>
-          {driver.full_name}
-        </Text>
-        <Text style={[styles.carInfo, { color: colors.textSecondary, fontFamily: theme.font.medium }]}>
-          {driver.car_model} • {driver.plate}
-        </Text>
-        <View style={styles.badges}>
-          <View style={[styles.badge, { backgroundColor: "rgba(255, 255, 255, 0.05)" }]}>
-            <Feather name="star" size={12} color={colors.primary} />
-            <Text style={[styles.badgeText, { color: colors.foreground, fontFamily: theme.font.semibold }]}>
-              {Number(driver.rating || 0).toFixed(2)}
-            </Text>
-          </View>
-          <View style={[styles.badge, { backgroundColor: "rgba(255, 255, 255, 0.05)" }]}>
-            <Feather name="trending-up" size={12} color={colors.success} />
-            <Text style={[styles.badgeText, { color: colors.foreground, fontFamily: theme.font.semibold }]}>
-              Elite Status
-            </Text>
-          </View>
-        </View>
-      </View>
-
-      <Text style={[styles.sectionTitle, { color: colors.textTertiary, fontFamily: theme.font.displayBold }]}>
-        PERFORMANCE
-      </Text>
+    <View style={[styles.screen, { backgroundColor: colors.background }]}>
+      <GlassHeader />
       
-      {earningsLoading ? (
-        <StateView mode="loading" title="Analyzing earnings..." />
-      ) : (
-        <View style={styles.earningsRow}>
-          {[
-            { label: "TODAY", data: earnings.today },
-            { label: "WEEK", data: earnings.week },
-            { label: "MONTH", data: earnings.month },
-          ].map((item) => (
-            <AppCard key={item.label} style={styles.earningsCard}>
-              <Text style={[styles.earningsAmount, { color: colors.primary, fontFamily: theme.font.displayBold }]}>
-                ${item.data.amount.toFixed(0)}
-              </Text>
-              <Text style={[styles.earningsTripCount, { color: colors.textSecondary, fontFamily: theme.font.medium }]}>
-                {item.data.trips} trips
-              </Text>
-              <Text style={[styles.earningsLabel, { color: colors.textTertiary, fontFamily: theme.font.medium }]}>
-                {item.label}
-              </Text>
-            </AppCard>
-          ))}
-        </View>
-      )}
-
-      <Text style={[styles.sectionTitle, { color: colors.textTertiary, fontFamily: theme.font.displayBold }]}>
-        MANAGEMENT
-      </Text>
-      
-      <Pressable
-        onPress={() => setShowPinForm(!showPinForm)}
-        style={[
-          styles.menuItem,
-          { backgroundColor: colors.card, borderColor: colors.cardBorder },
+      <ScrollView
+        style={styles.screen}
+        contentContainerStyle={[
+          styles.content,
+          { paddingTop: insets.top + 110 + webTopPadding, paddingBottom: 150 },
         ]}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={() => fetchEarnings(true)} tintColor={colors.primary} />
+        }
       >
-        <View style={styles.menuItemRow}>
-          <View style={[styles.iconBox, { backgroundColor: "rgba(245, 184, 0, 0.1)" }]}>
-            <Feather name="lock" size={18} color={colors.primary} />
-          </View>
-          <Text style={[styles.menuItemLabel, { color: colors.foreground, fontFamily: theme.font.semibold }]}>
-            Change Security PIN
+        <View style={styles.profileHero}>
+          <LinearGradient
+            colors={[colors.primary, "#FFD700"]}
+            style={styles.avatar}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <Text style={[styles.avatarText, { fontFamily: theme.font.displayBold }]}>{initials}</Text>
+          </LinearGradient>
+          <Text style={[styles.name, { color: colors.foreground, fontFamily: theme.font.displayBold }]}>
+            {driver.full_name}
           </Text>
+          <Text style={[styles.carInfo, { color: colors.textSecondary, fontFamily: theme.font.medium }]}>
+            {driver.car_model} • {driver.plate}
+          </Text>
+          <View style={styles.badges}>
+            <View style={[styles.badge, { backgroundColor: "rgba(255, 255, 255, 0.05)" }]}>
+              <Feather name="star" size={12} color={colors.primary} />
+              <Text style={[styles.badgeText, { color: colors.foreground, fontFamily: theme.font.semibold }]}>
+                {Number(driver.rating || 0).toFixed(2)}
+              </Text>
+            </View>
+            <View style={[styles.badge, { backgroundColor: "rgba(255, 255, 255, 0.05)" }]}>
+              <Feather name="trending-up" size={12} color={colors.success} />
+              <Text style={[styles.badgeText, { color: colors.foreground, fontFamily: theme.font.semibold }]}>
+                Elite Status
+              </Text>
+            </View>
+          </View>
         </View>
-        <Feather name={showPinForm ? "chevron-up" : "chevron-down"} size={18} color={colors.textTertiary} />
-      </Pressable>
 
-      {showPinForm && (
-        <AppCard style={styles.pinForm}>
-          <View style={styles.pinInput}>
-            <Text style={[styles.pinLabel, { color: colors.textSecondary, fontFamily: theme.font.medium }]}>Current PIN</Text>
-            <TextInput
-              style={[styles.textInput, { color: colors.foreground, backgroundColor: "rgba(255, 255, 255, 0.03)", borderColor: colors.cardBorder }]}
-              secureTextEntry
-              keyboardType="number-pad"
-              maxLength={6}
-              value={currentPin}
-              onChangeText={setCurrentPin}
-              placeholderTextColor={colors.textTertiary}
-            />
+        <Text style={[styles.sectionTitle, { color: colors.textTertiary, fontFamily: theme.font.displayBold }]}>
+          PERFORMANCE
+        </Text>
+        
+        {earningsLoading ? (
+          <StateView mode="loading" title="Analyzing earnings..." />
+        ) : (
+          <View style={styles.earningsRow}>
+            {[
+              { label: "TODAY", data: earnings.today },
+              { label: "WEEK", data: earnings.week },
+              { label: "MONTH", data: earnings.month },
+            ].map((item) => (
+              <AppCard key={item.label} style={styles.earningsCard}>
+                <Text style={[styles.earningsAmount, { color: colors.primary, fontFamily: theme.font.displayBold }]}>
+                  ${item.data.amount.toFixed(0)}
+                </Text>
+                <Text style={[styles.earningsTripCount, { color: colors.textSecondary, fontFamily: theme.font.medium }]}>
+                  {item.data.trips} trips
+                </Text>
+                <Text style={[styles.earningsLabel, { color: colors.textTertiary, fontFamily: theme.font.medium }]}>
+                  {item.label}
+                </Text>
+              </AppCard>
+            ))}
           </View>
-          <View style={styles.pinInput}>
-            <Text style={[styles.pinLabel, { color: colors.textSecondary, fontFamily: theme.font.medium }]}>New PIN</Text>
-            <TextInput
-              style={[styles.textInput, { color: colors.foreground, backgroundColor: "rgba(255, 255, 255, 0.03)", borderColor: colors.cardBorder }]}
-              secureTextEntry
-              keyboardType="number-pad"
-              maxLength={6}
-              value={newPin}
-              onChangeText={setNewPin}
-              placeholderTextColor={colors.textTertiary}
-            />
-          </View>
-          {pinError ? <Text style={[styles.pinError, { color: colors.destructive }]}>{pinError}</Text> : null}
-          <AppButton label="Confirm Changes" onPress={handleChangePin} loading={pinLoading} disabled={pinLoading} />
-        </AppCard>
-      )}
+        )}
 
-      <View style={styles.footerActions}>
-        <AppButton
-          label="Secure Logout"
-          onPress={handleLogout}
-          icon={<Feather name="power" size={18} color={colors.destructive} />}
-          variant="ghost"
-        />
-      </View>
-    </ScrollView>
+        <Text style={[styles.sectionTitle, { color: colors.textTertiary, fontFamily: theme.font.displayBold }]}>
+          MANAGEMENT
+        </Text>
+        
+        <Pressable
+          onPress={() => setShowPinForm(!showPinForm)}
+          style={[
+            styles.menuItem,
+            { backgroundColor: colors.card, borderColor: colors.cardBorder },
+          ]}
+        >
+          <View style={styles.menuItemRow}>
+            <View style={[styles.iconBox, { backgroundColor: "rgba(245, 184, 0, 0.1)" }]}>
+              <Feather name="lock" size={18} color={colors.primary} />
+            </View>
+            <Text style={[styles.menuItemLabel, { color: colors.foreground, fontFamily: theme.font.semibold }]}>
+              Change Security PIN
+            </Text>
+          </View>
+          <Feather name={showPinForm ? "chevron-up" : "chevron-down"} size={18} color={colors.textTertiary} />
+        </Pressable>
+
+        {showPinForm && (
+          <AppCard style={styles.pinForm}>
+            <View style={styles.pinInput}>
+              <Text style={[styles.pinLabel, { color: colors.textSecondary, fontFamily: theme.font.medium }]}>Current PIN</Text>
+              <TextInput
+                style={[styles.textInput, { color: colors.foreground, backgroundColor: "rgba(255, 255, 255, 0.03)", borderColor: colors.cardBorder }]}
+                secureTextEntry
+                keyboardType="number-pad"
+                maxLength={6}
+                value={currentPin}
+                onChangeText={setCurrentPin}
+                placeholderTextColor={colors.textTertiary}
+              />
+            </View>
+            <View style={styles.pinInput}>
+              <Text style={[styles.pinLabel, { color: colors.textSecondary, fontFamily: theme.font.medium }]}>New PIN</Text>
+              <TextInput
+                style={[styles.textInput, { color: colors.foreground, backgroundColor: "rgba(255, 255, 255, 0.03)", borderColor: colors.cardBorder }]}
+                secureTextEntry
+                keyboardType="number-pad"
+                maxLength={6}
+                value={newPin}
+                onChangeText={setNewPin}
+                placeholderTextColor={colors.textTertiary}
+              />
+            </View>
+            {pinError ? <Text style={[styles.pinError, { color: colors.destructive }]}>{pinError}</Text> : null}
+            <AppButton 
+              label="Confirm Changes" 
+              onPress={handleChangePin} 
+              loading={pinLoading} 
+              disabled={pinLoading} 
+              variant="glassProminent"
+              height={56}
+            />
+          </AppCard>
+        )}
+
+        <View style={styles.footerActions}>
+          <AppButton
+            label="Secure Logout"
+            onPress={handleLogout}
+            icon={<Feather name="power" size={18} color={colors.foreground} />}
+            variant="glass"
+            height={60}
+          />
+        </View>
+      </ScrollView>
+    </View>
   );
 }
 
