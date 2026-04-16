@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import { SymbolView } from "expo-symbols";
-import React from "react";
+import React, { useEffect } from "react";
 import {
   Linking,
   Platform,
@@ -10,6 +10,13 @@ import {
   Pressable,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+  interpolate,
+} from "react-native-reanimated";
 
 import { AppButton } from "@/components/ui/AppButton";
 import { AppCard } from "@/components/ui/AppCard";
@@ -29,6 +36,15 @@ export function ActiveTripCard({ trip, onComplete }: ActiveTripCardProps) {
   const customerName = trip.customers?.full_name || "GUEST PASSENGER";
   const customerPhone = trip.customers?.phone || "";
 
+  // Breathing pulse on the badge
+  const badgePulse = useSharedValue(0);
+  useEffect(() => {
+    badgePulse.value = withRepeat(withTiming(1, { duration: 2000 }), -1, true);
+  }, []);
+  const badgePulseStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(badgePulse.value, [0, 1], [0.85, 1]),
+  }));
+
   const openMaps = () => {
     const encoded = encodeURIComponent(trip.pickup_address);
     Linking.openURL(`https://maps.google.com/maps/search/?api=1&query=${encoded}`);
@@ -41,18 +57,26 @@ export function ActiveTripCard({ trip, onComplete }: ActiveTripCardProps) {
   };
 
   return (
-    <AppCard style={[styles.card, { backgroundColor: "rgba(93, 202, 165, 0.04)", borderColor: "rgba(93, 202, 165, 0.15)" }]}>
+    <AppCard
+      variant="elevated"
+      style={[
+        styles.card,
+        { borderColor: "rgba(93, 202, 165, 0.2)" },
+      ]}
+    >
       <View style={styles.headerRow}>
-        <LinearGradient
-          colors={[colors.success, "#4CAF50"]}
-          style={styles.badge}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-        >
-          <Text style={[styles.badgeText, { color: "#030303", fontFamily: theme.font.displayBold }]}>
-            ACTIVE MISSION
-          </Text>
-        </LinearGradient>
+        <Animated.View style={badgePulseStyle}>
+          <LinearGradient
+            colors={[colors.success, "#4CAF50"]}
+            style={styles.badge}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+          >
+            <Text style={[styles.badgeText, { color: "#030303", fontFamily: theme.font.displayBold }]}>
+              ● ACTIVE MISSION
+            </Text>
+          </LinearGradient>
+        </Animated.View>
         {trip.fare_usd != null && (
           <Text style={[styles.fare, { color: colors.primary, fontFamily: theme.font.displayBold }]}>
             ${formatCurrency(trip.fare_usd)}

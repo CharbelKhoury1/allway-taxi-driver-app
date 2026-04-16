@@ -108,15 +108,25 @@ export default function HistoryScreen() {
       <GlassHeader />
       
       <View style={[styles.header, { paddingTop: insets.top + 110 + webTopPadding }]}>
-        <Text style={[styles.title, { color: colors.foreground, fontFamily: theme.font.displayBold }]}>Activity History</Text>
+        <Text style={[styles.title, { color: colors.foreground, fontFamily: theme.font.displayBold }]}>Activity Journal</Text>
 
         <View style={styles.summaryRow}>
-          <AppCard style={styles.summaryCard}>
-            <Text style={[styles.summaryValue, { color: colors.foreground, fontFamily: theme.font.displayBold }]}>{totalTrips}</Text>
+          <AppCard variant="elevated" style={styles.summaryCard}>
+            <View style={[styles.summaryIcon, { backgroundColor: "rgba(255, 255, 255, 0.05)" }]}>
+              <Feather name="list" size={14} color={colors.textTertiary} />
+            </View>
+            <Text style={[styles.summaryValue, { color: colors.foreground, fontFamily: theme.font.displayBold }]}>
+              {totalTrips}
+            </Text>
             <Text style={[styles.summaryLabel, { color: colors.textTertiary, fontFamily: theme.font.medium }]}>TOTAL TRIPS</Text>
           </AppCard>
-          <AppCard style={styles.summaryCard}>
-            <Text style={[styles.summaryValue, { color: colors.primary, fontFamily: theme.font.displayBold }]}>${totalEarned.toFixed(0)}</Text>
+          <AppCard variant="elevated" style={styles.summaryCard}>
+            <View style={[styles.summaryIcon, { backgroundColor: "rgba(255, 184, 0, 0.08)" }]}>
+              <Feather name="trending-up" size={14} color={colors.primary} />
+            </View>
+            <Text style={[styles.summaryValue, { color: colors.primary, fontFamily: theme.font.displayBold }]}>
+              ${totalEarned.toFixed(0)}
+            </Text>
             <Text style={[styles.summaryLabel, { color: colors.textTertiary, fontFamily: theme.font.medium }]}>TOTAL REVENUE</Text>
           </AppCard>
         </View>
@@ -129,8 +139,14 @@ export default function HistoryScreen() {
               style={[
                 styles.filterPill,
                 {
-                  backgroundColor: filter === f.value ? colors.primary : colors.card,
-                  borderColor: filter === f.value ? colors.primary : colors.cardBorder,
+                  backgroundColor:
+                    filter === f.value
+                      ? "rgba(255, 184, 0, 0.08)"
+                      : "transparent",
+                  borderColor:
+                    filter === f.value
+                      ? colors.primary
+                      : "rgba(255, 255, 255, 0.08)",
                 },
               ]}
             >
@@ -138,8 +154,14 @@ export default function HistoryScreen() {
                 style={[
                   styles.filterText,
                   {
-                    color: filter === f.value ? "#030303" : colors.textSecondary,
-                    fontFamily: filter === f.value ? theme.font.displayBold : theme.font.medium,
+                    color:
+                      filter === f.value
+                        ? colors.primary
+                        : colors.textSecondary,
+                    fontFamily:
+                      filter === f.value
+                        ? theme.font.displayBold
+                        : theme.font.medium,
                   },
                 ]}
               >
@@ -165,26 +187,27 @@ export default function HistoryScreen() {
           renderItem={({ item }) => (
             <AppCard style={styles.tripItem}>
               <View style={styles.tripHeader}>
-                <View>
-                  <Text style={[styles.tripCustomer, { color: colors.foreground, fontFamily: theme.font.displayBold }]}>
-                    {item.customers?.full_name || "Guest"}
-                  </Text>
-                  <Text style={[styles.tripTime, { color: colors.textTertiary, fontFamily: theme.font.regular }]}>
-                    {getTimeAgo(item.requested_at)}
-                  </Text>
-                </View>
-                <View style={styles.tripRight}>
-                  <Text style={[styles.tripFare, { color: colors.primary, fontFamily: theme.font.displayBold }]}>
-                    ${formatCurrency(item.fare_usd || 0)}
-                  </Text>
-                  <View style={[styles.statusBadge, { backgroundColor: "rgba(255, 255, 255, 0.05)" }]}>
-                    <Text style={[styles.statusText, { color: getStatusColor(item.status, colors), fontFamily: theme.font.bold }]}>
-                      {item.status.replace("_", " ")}
+                <View style={styles.tripLeft}>
+                  <View
+                    style={[
+                      styles.tripStatusDot,
+                      { backgroundColor: getStatusColor(item.status, colors) },
+                    ]}
+                  />
+                  <View>
+                    <Text style={[styles.tripCustomer, { color: colors.foreground, fontFamily: theme.font.displayBold }]}>
+                      {item.customers?.full_name || "Guest Passenger"}
+                    </Text>
+                    <Text style={[styles.tripTime, { color: colors.textTertiary, fontFamily: theme.font.regular }]}>
+                      {getTimeAgo(item.requested_at)} • {item.status.replace("_", " ").toUpperCase()}
                     </Text>
                   </View>
                 </View>
+                <Text style={[styles.tripFare, { color: item.status === "completed" ? colors.primary : colors.textSecondary, fontFamily: theme.font.displayBold }]}>
+                  ${formatCurrency(item.fare_usd || 0)}
+                </Text>
               </View>
-              <View style={styles.divider} />
+              <View style={[styles.divider, { backgroundColor: "rgba(255,255,255,0.05)" }]} />
               <TripRouteBlock pickupAddress={item.pickup_address} dropoffAddress={item.dropoff_address} numberOfLines={1} />
             </AppCard>
           )}
@@ -207,78 +230,87 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    marginBottom: 20,
+    letterSpacing: -0.5,
+    marginBottom: 24,
   },
   summaryRow: {
     flexDirection: "row",
     gap: 12,
-    marginBottom: 20,
+    marginBottom: 24,
   },
   summaryCard: {
     flex: 1,
-    padding: 16,
-    alignItems: "center",
+    padding: 20,
     marginBottom: 0,
-    backgroundColor: "rgba(255, 255, 255, 0.03)",
+    gap: 6,
+  },
+  summaryIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 4,
   },
   summaryValue: {
-    fontSize: 24,
+    fontSize: 26,
+    letterSpacing: -0.5,
   },
   summaryLabel: {
-    fontSize: 10,
+    fontSize: 9,
     letterSpacing: 1.5,
-    marginTop: 4,
   },
   filterRow: {
     flexDirection: "row",
     gap: 8,
+    flexWrap: "wrap",
   },
   filterPill: {
     paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 12,
+    paddingVertical: 9,
+    borderRadius: 14,
     borderWidth: 1,
   },
   filterText: {
     fontSize: 13,
   },
   tripItem: {
-    padding: 16,
-    marginBottom: 12,
+    padding: 20,
+    marginBottom: 10,
+    borderRadius: 20,
   },
   tripHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 12,
+    marginBottom: 14,
+  },
+  tripLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    flex: 1,
+  },
+  tripStatusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginTop: 2,
   },
   tripCustomer: {
     fontSize: 16,
   },
   tripTime: {
-    fontSize: 12,
+    fontSize: 11,
     marginTop: 2,
-  },
-  tripRight: {
-    alignItems: "flex-end",
-    gap: 4,
+    opacity: 0.6,
   },
   tripFare: {
-    fontSize: 18,
-  },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  statusText: {
-    fontSize: 10,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
+    fontSize: 20,
+    letterSpacing: -0.5,
   },
   divider: {
     height: 1,
-    backgroundColor: "rgba(255, 255, 255, 0.05)",
-    marginBottom: 12,
+    marginBottom: 14,
   },
 });

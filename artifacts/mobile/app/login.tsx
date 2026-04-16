@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import { SymbolView } from "expo-symbols";
 import { router } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Platform,
   ScrollView,
@@ -14,6 +14,13 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+  interpolate,
+} from "react-native-reanimated";
 
 import { AppButton } from "@/components/ui/AppButton";
 import { theme } from "@/constants/theme";
@@ -31,6 +38,28 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [attemptCount, setAttemptCount] = useState(0);
   const [lockedUntil, setLockedUntil] = useState<number | null>(null);
+
+  // Animated ambient glows
+  const glow1Anim = useSharedValue(0);
+  const glow2Anim = useSharedValue(0);
+
+  useEffect(() => {
+    glow1Anim.value = withRepeat(withTiming(1, { duration: 4000 }), -1, true);
+    // Offset second glow by 2s for organic feel
+    setTimeout(() => {
+      glow2Anim.value = withRepeat(withTiming(1, { duration: 5000 }), -1, true);
+    }, 2000);
+  }, []);
+
+  const glow1Style = useAnimatedStyle(() => ({
+    opacity: interpolate(glow1Anim.value, [0, 1], [0.10, 0.22]),
+    transform: [{ scale: interpolate(glow1Anim.value, [0, 1], [1, 1.15]) }],
+  }));
+
+  const glow2Style = useAnimatedStyle(() => ({
+    opacity: interpolate(glow2Anim.value, [0, 1], [0.06, 0.14]),
+    transform: [{ scale: interpolate(glow2Anim.value, [0, 1], [1, 1.1]) }],
+  }));
 
   const handleLogin = async () => {
     const now = Date.now();
@@ -75,9 +104,26 @@ export default function LoginScreen() {
         style={StyleSheet.absoluteFill}
       />
       
-      {/* Decorative Glow Elements */}
-      <View style={[styles.glow, { top: -50, right: -50, backgroundColor: colors.primary, opacity: 0.15 }]} />
-      <View style={[styles.glow, { bottom: -100, left: -50, backgroundColor: "#1e3a8a", opacity: 0.1 }]} />
+      {/* Animated ambient glows */}
+      <Animated.View
+        style={[
+          styles.glow,
+          glow1Style,
+          { top: -80, right: -80, backgroundColor: colors.primary },
+        ]}
+      />
+      <Animated.View
+        style={[
+          styles.glow,
+          glow2Style,
+          { bottom: -120, left: -80, backgroundColor: "#1e3a8a" },
+        ]}
+      />
+      {/* Subtle center vignette */}
+      <LinearGradient
+        colors={["transparent", "rgba(3,3,3,0.6)"]}
+        style={[StyleSheet.absoluteFill, { top: "50%" }]}
+      />
 
       <ScrollView
         keyboardShouldPersistTaps="handled"
@@ -107,7 +153,7 @@ export default function LoginScreen() {
           </Text>
         </View>
 
-        <BlurView intensity={25} tint="dark" style={[styles.glassCard, { borderColor: "rgba(255, 255, 255, 0.1)" }]}>
+        <BlurView intensity={30} tint="dark" style={[styles.glassCard, { borderColor: "rgba(255, 255, 255, 0.1)" }]}>
           <View style={styles.form}>
             <View style={styles.inputGroup}>
               <Text style={[styles.label, { color: colors.textTertiary, fontFamily: theme.font.displayBold }]}>IDENTIFICATION</Text>
@@ -197,9 +243,9 @@ const styles = StyleSheet.create({
   },
   glow: {
     position: "absolute",
-    width: 300,
-    height: 300,
-    borderRadius: 150,
+    width: 340,
+    height: 340,
+    borderRadius: 170,
   },
   container: {
     paddingHorizontal: 30,

@@ -1,20 +1,32 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
-import React, { useState } from "react";
+import * as Haptics from "expo-haptics";
+import React from "react";
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
   View,
-  Platform,
 } from "react-native";
-import * as Haptics from "expo-haptics";
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from "react-native-reanimated";
 
 import { theme } from "@/constants/theme";
 import { useColors } from "@/hooks/useColors";
 
-type Variant = "primary" | "secondary" | "success" | "danger" | "ghost" | "glass" | "glassProminent";
+type Variant =
+  | "primary"
+  | "secondary"
+  | "success"
+  | "danger"
+  | "ghost"
+  | "glass"
+  | "glassProminent";
 
 interface AppButtonProps {
   label: string;
@@ -40,81 +52,113 @@ export function AppButton({
   const colors = useColors();
   const isDisabled = disabled || loading;
 
-  const getPalette = () => {
-    switch (variant) {
-      case "primary": return { bg: "transparent", fg: "#030303", border: "transparent" };
-      case "success": return { bg: colors.success, fg: "#030303", border: "transparent" };
-      case "danger": return { bg: "transparent", fg: colors.destructive, border: colors.destructive };
-      case "ghost": return { bg: "transparent", fg: colors.textSecondary, border: "transparent" };
-      case "glass": return { bg: "rgba(255, 255, 255, 0.05)", fg: colors.foreground, border: "rgba(255, 255, 255, 0.1)" };
-      case "glassProminent": return { bg: "rgba(255, 255, 255, 0.12)", fg: colors.foreground, border: "rgba(255, 255, 255, 0.2)" };
-      default: return { bg: colors.secondary, fg: colors.foreground, border: colors.cardBorder };
-    }
+  const scale = useSharedValue(1);
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  const handlePressIn = () => {
+    scale.value = withSpring(0.97, { damping: 15, stiffness: 300 });
   };
 
-  const palette = getPalette();
-  const [isPressed, setIsPressed] = useState(false);
+  const handlePressOut = () => {
+    scale.value = withSpring(1, { damping: 15, stiffness: 300 });
+  };
 
   const handlePress = () => {
+    if (isDisabled) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     onPress();
   };
 
+  const getPalette = () => {
+    switch (variant) {
+      case "primary":
+        return { bg: "transparent", fg: "#030303", border: "transparent" };
+      case "secondary":
+        return { bg: colors.card, fg: colors.foreground, border: "rgba(255, 255, 255, 0.1)" };
+      case "success":
+        return { bg: colors.success, fg: "#030303", border: "transparent" };
+      case "danger":
+        return { bg: "rgba(240, 82, 82, 0.1)", fg: colors.destructive, border: "rgba(240, 82, 82, 0.3)" };
+      case "ghost":
+        return { bg: "transparent", fg: colors.textSecondary, border: "transparent" };
+      case "glass":
+        return { bg: "rgba(255, 255, 255, 0.04)", fg: colors.foreground, border: "rgba(255, 255, 255, 0.1)" };
+      case "glassProminent":
+        return { bg: "rgba(255, 255, 255, 0.08)", fg: colors.foreground, border: "rgba(255, 255, 255, 0.18)" };
+      default:
+        return { bg: colors.card, fg: colors.foreground, border: colors.cardBorder };
+    }
+  };
+
+  const palette = getPalette();
+  const isGlass = variant === "glass" || variant === "glassProminent";
+
   return (
-    <Pressable
-      onPress={handlePress}
-      disabled={isDisabled}
-      onPressIn={() => setIsPressed(true)}
-      onPressOut={() => setIsPressed(false)}
-      style={[
-        styles.button,
-        {
-          backgroundColor: Platform.OS === "ios" && (variant === "glass" || variant === "glassProminent") ? "transparent" : palette.bg,
-          borderColor: palette.border,
-          opacity: isDisabled ? 0.6 : 1,
-          transform: [{ scale: isPressed ? 0.98 : 1 }],
-          flex,
-          height,
-        },
-      ]}
-    >
-      {variant === "primary" ? (
-        <LinearGradient
-          colors={["#F5B800", "#FFD700"]}
-          style={StyleSheet.absoluteFill}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        />
-      ) : null}
+    <Animated.View style={[{ flex }, animatedStyle]}>
+      <Pressable
+        onPress={handlePress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        disabled={isDisabled}
+        style={[
+          styles.button,
+          {
+            backgroundColor:
+              Platform.OS === "ios" && isGlass ? "transparent" : palette.bg,
+            borderColor: palette.border,
+            opacity: isDisabled ? 0.5 : 1,
+            height,
+          },
+        ]}
+      >
+        {/* Primary gradient fill */}
+        {variant === "primary" && (
+          <LinearGradient
+            colors={["#F5B800", "#E8A800", "#FFD700"]}
+            style={StyleSheet.absoluteFill}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          />
+        )}
 
-      {Platform.OS === "ios" && (variant === "glass" || variant === "glassProminent") && (
-        <BlurView
-          intensity={variant === "glassProminent" ? 40 : 25}
-          tint="dark"
-          style={StyleSheet.absoluteFill}
-        />
-      )}
+        {/* iOS blur layer for glass variants */}
+        {Platform.OS === "ios" && isGlass && (
+          <BlurView
+            intensity={variant === "glassProminent" ? 45 : 28}
+            tint="dark"
+            style={StyleSheet.absoluteFill}
+          />
+        )}
 
-      {isPressed && Platform.OS === "ios" && (
-        <LinearGradient
-          colors={["rgba(255, 255, 255, 0.15)", "rgba(255, 255, 255, 0)"]}
-          style={StyleSheet.absoluteFill}
-          start={{ x: 0.5, y: 0 }}
-          end={{ x: 0.5, y: 1 }}
-        />
-      )}
+        {/* Glass top shimmer highlight */}
+        {isGlass && (
+          <LinearGradient
+            colors={["rgba(255, 255, 255, 0.12)", "rgba(255, 255, 255, 0)"]}
+            style={[StyleSheet.absoluteFill, styles.shimmer]}
+            start={{ x: 0.5, y: 0 }}
+            end={{ x: 0.5, y: 0.4 }}
+          />
+        )}
 
-      {loading ? (
-        <ActivityIndicator color={palette.fg} />
-      ) : (
-        <View style={styles.content}>
-          <Text style={[styles.text, { color: palette.fg, fontFamily: theme.font.displayBold }]}>
-            {label}
-          </Text>
-          {icon}
-        </View>
-      )}
-    </Pressable>
+        {loading ? (
+          <ActivityIndicator color={palette.fg} />
+        ) : (
+          <View style={styles.content}>
+            {icon && <View style={styles.iconWrap}>{icon}</View>}
+            <Text
+              style={[
+                styles.text,
+                { color: palette.fg, fontFamily: theme.font.displayBold },
+              ]}
+            >
+              {label}
+            </Text>
+          </View>
+        )}
+      </Pressable>
+    </Animated.View>
   );
 }
 
@@ -127,11 +171,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     overflow: "hidden",
   },
+  shimmer: {
+    borderRadius: 18,
+  },
   content: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 10,
+  },
+  iconWrap: {
+    alignItems: "center",
+    justifyContent: "center",
   },
   text: {
     fontSize: 16,

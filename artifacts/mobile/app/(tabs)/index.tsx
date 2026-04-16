@@ -46,36 +46,50 @@ function RadarSweep() {
   const colors = useColors();
   const rotation = useSharedValue(0);
   const pulse = useSharedValue(0);
+  const pulse2 = useSharedValue(0);
 
   useEffect(() => {
-    rotation.value = withRepeat(withTiming(360, { duration: 4000 }), -1, false);
-    pulse.value = withRepeat(withTiming(1, { duration: 2500 }), -1, true);
+    rotation.value = withRepeat(
+      withTiming(360, { duration: 3500 }),
+      -1,
+      false,
+    );
+    pulse.value = withRepeat(withTiming(1, { duration: 2000 }), -1, false);
+    // Offset second pulse by half a cycle
+    setTimeout(() => {
+      pulse2.value = withRepeat(withTiming(1, { duration: 2000 }), -1, false);
+    }, 1000);
   }, []);
 
-  const animatedStyle = useAnimatedStyle(() => ({
+  const sweepStyle = useAnimatedStyle(() => ({
     transform: [{ rotate: `${rotation.value}deg` }],
   }));
 
   const pulseStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: interpolate(pulse.value, [0, 1], [1, 1.4]) }],
-    opacity: interpolate(pulse.value, [0, 1], [0.3, 0]),
+    transform: [{ scale: interpolate(pulse.value, [0, 1], [1, 1.6]) }],
+    opacity: interpolate(pulse.value, [0, 0.4, 1], [0.4, 0.1, 0]),
+  }));
+
+  const pulse2Style = useAnimatedStyle(() => ({
+    transform: [{ scale: interpolate(pulse2.value, [0, 1], [1, 1.3]) }],
+    opacity: interpolate(pulse2.value, [0, 0.4, 1], [0.2, 0.06, 0]),
   }));
 
   return (
     <View style={styles.radarContainer}>
-      <View style={[styles.radarBg, { borderColor: "rgba(255,184,0,0.15)" }]}>
+      {/* Outer ring */}
+      <View style={[styles.radarRingOuter, { borderColor: "rgba(255,184,0,0.08)" }]} />
+      <View style={[styles.radarBg, { borderColor: "rgba(255,184,0,0.2)" }]}>
         <Animated.View style={[styles.radarPulse, pulseStyle, { backgroundColor: colors.primary }]} />
-        <Animated.View
-          style={[
-            styles.radarSweep,
-            animatedStyle,
-            { borderTopColor: colors.primary },
-          ]}
-        />
+        <Animated.View style={[styles.radarPulse, pulse2Style, { backgroundColor: colors.primary }]} />
+        <Animated.View style={[styles.radarSweep, sweepStyle, { borderTopColor: colors.primary }]} />
         <View style={[styles.radarCenter, { backgroundColor: colors.primary }]} />
       </View>
+      <Text style={[styles.radarLabel, { color: colors.textTertiary, fontFamily: theme.font.displayBold }]}>
+        SCANNING
+      </Text>
       <Text style={[styles.radarText, { color: colors.textTertiary, fontFamily: theme.font.medium }]}>
-        Live trip scanning active...
+        Monitoring for available jobs...
       </Text>
     </View>
   );
@@ -141,27 +155,66 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
       >
         <AppCard
+          variant={isOnline ? "elevated" : "default"}
           style={[
             styles.mainShiftCard,
             {
-              backgroundColor: isOnline ? "transparent" : "rgba(255, 255, 255, 0.02)",
-              borderColor: isOnline ? "rgba(255, 184, 0, 0.2)" : "rgba(255, 255, 255, 0.05)",
-              ...theme.shadows.soft,
+              borderColor: isOnline
+                ? "rgba(255, 184, 0, 0.22)"
+                : "rgba(255, 255, 255, 0.05)",
             },
           ]}
         >
           <View style={styles.shiftHeader}>
             <View style={styles.shiftInfo}>
-              <Text style={[styles.statusLabel, { color: isOnline ? colors.success : colors.textTertiary, fontFamily: theme.font.displayBold }]}>
-                {isOnline ? "OPERATIONAL" : isLocating ? "INITIALIZING..." : "SYSTEM STANDBY"}
-              </Text>
+              <View style={styles.statusRow}>
+                <View
+                  style={[
+                    styles.statusDot,
+                    {
+                      backgroundColor: isOnline
+                        ? colors.success
+                        : isLocating
+                        ? colors.warning
+                        : "rgba(255,255,255,0.2)",
+                    },
+                  ]}
+                />
+                <Text
+                  style={[
+                    styles.statusLabel,
+                    {
+                      color: isOnline
+                        ? colors.success
+                        : colors.textTertiary,
+                      fontFamily: theme.font.displayBold,
+                    },
+                  ]}
+                >
+                  {isOnline
+                    ? "OPERATIONAL"
+                    : isLocating
+                    ? "INITIALIZING..."
+                    : "SYSTEM STANDBY"}
+                </Text>
+              </View>
               {isOnline ? (
-                <Text style={[styles.shiftTimer, { color: colors.foreground, fontFamily: theme.font.displayBold }]}>
+                <Text
+                  style={[
+                    styles.shiftTimer,
+                    { color: colors.foreground, fontFamily: theme.font.displayBold },
+                  ]}
+                >
                   {shiftDisplay}
                 </Text>
               ) : (
-                <Text style={[styles.offlineText, { color: colors.textSecondary, fontFamily: theme.font.medium }]}>
-                  Go online to receive jobs
+                <Text
+                  style={[
+                    styles.offlineText,
+                    { color: colors.textSecondary, fontFamily: theme.font.medium },
+                  ]}
+                >
+                  Engage power to receive dispatch
                 </Text>
               )}
             </View>
@@ -174,23 +227,51 @@ export default function HomeScreen() {
           </View>
 
           {isOnline && (
-            <View style={styles.quickStats}>
-              <View style={styles.quickStatItem}>
+            <View
+              style={[
+                styles.quickStats,
+                { borderTopColor: "rgba(255, 255, 255, 0.06)" },
+              ]}
+            >
+              <View
+                style={[
+                  styles.quickStatPill,
+                  { backgroundColor: "rgba(255, 184, 0, 0.08)" },
+                ]}
+              >
                 {Platform.OS === "ios" ? (
-                  <SymbolView name="bolt.fill" size={12} tintColor={colors.primary} />
+                  <SymbolView name="bolt.fill" size={11} tintColor={colors.primary} />
                 ) : (
-                  <Feather name="zap" size={12} color={colors.primary} />
+                  <Feather name="zap" size={11} color={colors.primary} />
                 )}
-                <Text style={[styles.quickStatText, { color: colors.textSecondary, fontFamily: theme.font.displayBold }]}>HOT AREA</Text>
+                <Text
+                  style={[
+                    styles.quickStatText,
+                    { color: colors.primary, fontFamily: theme.font.displayBold },
+                  ]}
+                >
+                  HOT ZONE
+                </Text>
               </View>
-              <View style={styles.statDot} />
-              <View style={styles.quickStatItem}>
+              <View
+                style={[
+                  styles.quickStatPill,
+                  { backgroundColor: "rgba(93, 202, 165, 0.08)" },
+                ]}
+              >
                 {Platform.OS === "ios" ? (
-                  <SymbolView name="shield.fill" size={12} tintColor={colors.success} />
+                  <SymbolView name="shield.fill" size={11} tintColor={colors.success} />
                 ) : (
-                  <Feather name="shield" size={12} color={colors.success} />
+                  <Feather name="shield" size={11} color={colors.success} />
                 )}
-                <Text style={[styles.quickStatText, { color: colors.textSecondary, fontFamily: theme.font.displayBold }]}>SECURE</Text>
+                <Text
+                  style={[
+                    styles.quickStatText,
+                    { color: colors.success, fontFamily: theme.font.displayBold },
+                  ]}
+                >
+                  SECURED
+                </Text>
               </View>
             </View>
           )}
@@ -321,44 +402,51 @@ const styles = StyleSheet.create({
   shiftInfo: {
     gap: 4,
   },
+  statusRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 6,
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
   statusLabel: {
     fontSize: 9,
     letterSpacing: 2,
     textTransform: "uppercase",
-    opacity: 0.9,
   },
   shiftTimer: {
-    fontSize: 42,
-    letterSpacing: -1.5,
-    lineHeight: 48,
+    fontSize: 46,
+    letterSpacing: -2,
+    lineHeight: 52,
   },
   offlineText: {
-    fontSize: 16,
-    opacity: 0.6,
+    fontSize: 15,
+    opacity: 0.5,
+    marginTop: 4,
   },
   quickStats: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: 10,
     marginTop: 24,
-    paddingTop: 24,
+    paddingTop: 20,
     borderTopWidth: 1,
-    borderTopColor: "rgba(255, 255, 255, 0.05)",
   },
-  quickStatItem: {
+  quickStatPill: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
   },
   quickStatText: {
     fontSize: 10,
     letterSpacing: 1,
-  },
-  statDot: {
-    width: 3,
-    height: 3,
-    borderRadius: 2,
-    backgroundColor: "rgba(255, 255, 255, 0.15)",
   },
   tripsSection: {
     marginTop: 12,
@@ -384,8 +472,16 @@ const styles = StyleSheet.create({
   },
   radarContainer: {
     alignItems: "center",
-    paddingVertical: 80,
-    gap: 28,
+    paddingVertical: 64,
+    gap: 16,
+  },
+  radarRingOuter: {
+    position: "absolute",
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    borderWidth: 1,
+    top: 64 - 30,
   },
   radarBg: {
     width: 160,
@@ -404,19 +500,25 @@ const styles = StyleSheet.create({
   radarSweep: {
     width: 80,
     height: 80,
-    borderTopWidth: 5,
+    borderTopWidth: 4,
     borderRadius: 40,
     position: "absolute",
   },
   radarCenter: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  radarLabel: {
+    fontSize: 9,
+    letterSpacing: 3,
+    opacity: 0.5,
+    marginTop: 8,
   },
   radarText: {
-    fontSize: 14,
-    letterSpacing: 0.5,
-    opacity: 0.6,
+    fontSize: 13,
+    letterSpacing: 0.3,
+    opacity: 0.4,
   },
   actionGrid: {
     gap: 16,
