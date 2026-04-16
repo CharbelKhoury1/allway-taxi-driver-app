@@ -26,16 +26,16 @@ export function StateView({ mode, title, description, onRetry }: StateViewProps)
       ) : (
         <Feather name={iconName} size={34} color={iconColor} />
       )}
-      <Text style={[styles.title, { color: colors.foreground }]}>{title}</Text>
+      <Text style={[styles.title, { color: colors.foreground, fontFamily: theme.font.semibold }]}>{title}</Text>
       {description ? (
-        <Text style={[styles.description, { color: colors.textSecondary }]}>{description}</Text>
+        <Text style={[styles.description, { color: colors.textSecondary, fontFamily: theme.font.regular }]}>{description}</Text>
       ) : null}
       {mode === "error" && onRetry ? (
         <Pressable
           onPress={onRetry}
           style={[styles.retryButton, { borderColor: colors.cardBorder, backgroundColor: colors.card }]}
         >
-          <Text style={[styles.retryText, { color: colors.primary }]}>Try again</Text>
+          <Text style={[styles.retryText, { color: colors.primary, fontFamily: theme.font.semibold }]}>Try again</Text>
         </Pressable>
       ) : null}
     </View>
@@ -52,12 +52,10 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: theme.typography.bodyLg,
-    fontFamily: "Inter_600SemiBold",
   },
   description: {
     fontSize: theme.typography.body,
     textAlign: "center",
-    fontFamily: "Inter_400Regular",
   },
   retryButton: {
     marginTop: theme.spacing.sm,
@@ -68,6 +66,5 @@ const styles = StyleSheet.create({
   },
   retryText: {
     fontSize: theme.typography.body,
-    fontFamily: "Inter_600SemiBold",
   },
 });

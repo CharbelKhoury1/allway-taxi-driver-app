@@ -1,6 +1,6 @@
 import { BlurView } from "expo-blur";
 import React from "react";
-import { StyleSheet, Text, View, Image, Platform } from "react-native";
+import { StyleSheet, Text, View, Image, Platform, TouchableOpacity } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import { SymbolView } from "expo-symbols";

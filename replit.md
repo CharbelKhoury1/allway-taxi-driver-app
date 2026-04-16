@@ -38,12 +38,19 @@ A production-grade native mobile application for taxi drivers. Connects to an ex
 - **Supabase**: Database and Realtime (env vars: `SUPABASE_URL`, `SUPABASE_ANON_KEY`)
 
 ### Design System: "Beirut Midnight"
-- Dark background: `#0D0D14`
+- Dark background: `#0D0D14` / `#030303`
 - Primary/Accent: `#F5B800` (Allway Yellow)
 - Success: `#5DCAA5`
 - Error: `#F09595`
 - Warning: `#EF9F27`
 - Typography: Inter (400, 500, 600, 700)
+- UI direction: premium dark glass, compact driver-first controls, yellow operational accents
+
+### Recent UI and Stability Notes
+- Root route renders the login screen directly when no driver session exists, avoiding blank redirect states.
+- Icon imports use `@expo/vector-icons`; avoid `@expo-vector-icons` and avoid adding unneeded icon packages.
+- Shared header is used on authenticated dashboard/history/account tabs.
+- Login screen uses a compact centered secure-gateway card with the Allway yellow mark and direct sign-in action placement.
 
 ### Database Tables (Supabase - read from external)
 - `drivers` — Driver profiles, location, shift status
@@ -52,10 +59,7 @@ A production-grade native mobile application for taxi drivers. Connects to an ex
 
 ## Key Commands
 
-- `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
 - `pnpm --filter @workspace/api-server run dev` — run API server locally
-
-See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details.
+- `pnpm --filter @workspace/mobile run dev` — run the Expo mobile app

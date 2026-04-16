@@ -1,6 +1,6 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
-import React from "react";
+import React, { useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -53,6 +53,7 @@ export function AppButton({
   };
 
   const palette = getPalette();
+  const [isPressed, setIsPressed] = useState(false);
 
   const handlePress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -63,13 +64,15 @@ export function AppButton({
     <Pressable
       onPress={handlePress}
       disabled={isDisabled}
-      style={({ pressed }) => [
+      onPressIn={() => setIsPressed(true)}
+      onPressOut={() => setIsPressed(false)}
+      style={[
         styles.button,
         {
           backgroundColor: Platform.OS === "ios" && (variant === "glass" || variant === "glassProminent") ? "transparent" : palette.bg,
           borderColor: palette.border,
           opacity: isDisabled ? 0.6 : 1,
-          transform: [{ scale: pressed ? 0.98 : 1 }],
+          transform: [{ scale: isPressed ? 0.98 : 1 }],
           flex,
           height,
         },
@@ -92,29 +95,24 @@ export function AppButton({
         />
       )}
 
-      {({ pressed }) => (
-        <>
-          {/* Interactive Specular Highlight / Touch Illumination */}
-          {pressed && Platform.OS === "ios" && (
-            <LinearGradient
-              colors={["rgba(255, 255, 255, 0.15)", "rgba(255, 255, 255, 0)"]}
-              style={StyleSheet.absoluteFill}
-              start={{ x: 0.5, y: 0 }}
-              end={{ x: 0.5, y: 1 }}
-            />
-          )}
+      {isPressed && Platform.OS === "ios" && (
+        <LinearGradient
+          colors={["rgba(255, 255, 255, 0.15)", "rgba(255, 255, 255, 0)"]}
+          style={StyleSheet.absoluteFill}
+          start={{ x: 0.5, y: 0 }}
+          end={{ x: 0.5, y: 1 }}
+        />
+      )}
 
-          {loading ? (
-            <ActivityIndicator color={palette.fg} />
-          ) : (
-            <View style={styles.content}>
-              {icon}
-              <Text style={[styles.text, { color: palette.fg, fontFamily: theme.font.displayBold }]}>
-                {label}
-              </Text>
-            </View>
-          )}
-        </>
+      {loading ? (
+        <ActivityIndicator color={palette.fg} />
+      ) : (
+        <View style={styles.content}>
+          <Text style={[styles.text, { color: palette.fg, fontFamily: theme.font.displayBold }]}>
+            {label}
+          </Text>
+          {icon}
+        </View>
       )}
     </Pressable>
   );

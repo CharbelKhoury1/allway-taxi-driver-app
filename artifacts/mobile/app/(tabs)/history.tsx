@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 
 import { AppCard } from "@/components/ui/AppCard";
+import { GlassHeader } from "@/components/GlassHeader";
 import { StateView } from "@/components/ui/StateView";
 import { TripRouteBlock } from "@/components/ui/TripRouteBlock";
 import { theme } from "@/constants/theme";
@@ -188,7 +189,7 @@ export default function HistoryScreen() {
             </AppCard>
           )}
           ListEmptyComponent={
-            <StateView mode="empty" title="No trips found" description="Awaiting is empty." />
+            <StateView mode="empty" title="No trips found" description="Completed and active trips will appear here after your first shift." />
           }
         />
       )}

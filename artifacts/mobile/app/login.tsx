@@ -9,7 +9,6 @@ import {
   Text,
   TextInput,
   View,
-  Image,
   KeyboardAvoidingView,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -92,13 +91,14 @@ export default function LoginScreen() {
         ]}
       >
         <View style={styles.header}>
-          <View style={styles.logoWrapper}>
-            <Image 
-              source={require("@/assets/images/logo.png")} 
-              style={styles.logo}
-              resizeMode="contain"
-            />
-          </View>
+          <LinearGradient
+            colors={["rgba(245, 184, 0, 0.28)", "rgba(245, 184, 0, 0.08)"]}
+            style={styles.logoWrapper}
+          >
+            <View style={styles.logoInner}>
+              <Text style={[styles.logoText, { color: colors.primary, fontFamily: theme.font.displayBold }]}>W</Text>
+            </View>
+          </LinearGradient>
           <Text style={[styles.appName, { color: colors.foreground, fontFamily: theme.font.displayBold }]}>
             ALLWAY <Text style={{ color: colors.primary }}>TAXI</Text>
           </Text>
@@ -210,15 +210,27 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   logoWrapper: {
-    width: 80,
-    height: 80,
+    width: 86,
+    height: 86,
+    borderRadius: 28,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 24,
+    borderWidth: 1,
+    borderColor: "rgba(245, 184, 0, 0.22)",
   },
-  logo: {
-    width: 80,
-    height: 80,
+  logoInner: {
+    width: 62,
+    height: 62,
+    borderRadius: 20,
+    backgroundColor: "rgba(0, 0, 0, 0.52)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  logoText: {
+    fontSize: 38,
+    letterSpacing: -5,
+    transform: [{ skewX: "-10deg" }],
   },
   appName: {
     fontSize: 28,

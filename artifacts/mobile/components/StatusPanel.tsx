@@ -3,6 +3,7 @@ import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 
 import { useColors } from "@/hooks/useColors";
+import { theme } from "@/constants/theme";
 
 interface StatusPanelProps {
   realtimeConnected: boolean;
@@ -37,33 +38,41 @@ export function StatusPanel({
 
   return (
     <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
-      <Text style={[styles.title, { color: colors.textSecondary }]}>Shift Status</Text>
+      <View style={styles.titleRow}>
+        <Text style={[styles.title, { color: colors.textSecondary, fontFamily: theme.font.displayBold }]}>Shift Systems</Text>
+        <View style={[styles.livePill, { borderColor: "rgba(93, 202, 165, 0.28)" }]}>
+          <View style={[styles.liveDot, { backgroundColor: colors.success }]} />
+          <Text style={[styles.liveText, { color: colors.success, fontFamily: theme.font.displayBold }]}>LIVE</Text>
+        </View>
+      </View>
       <View style={styles.items}>
         {items.map((item) => (
-          <View key={item.label} style={styles.item}>
+          <View
+            key={item.label}
+            style={[
+              styles.item,
+              {
+                backgroundColor: item.connected ? "rgba(93, 202, 165, 0.08)" : "rgba(255, 255, 255, 0.035)",
+                borderColor: item.connected ? "rgba(93, 202, 165, 0.18)" : colors.cardBorder,
+              },
+            ]}
+          >
             <Feather
               name={item.icon}
-              size={14}
+              size={15}
               color={item.connected ? colors.success : colors.textTertiary}
             />
             <Text
               style={[
                 styles.label,
-                { color: item.connected ? colors.foreground : colors.textTertiary },
+                {
+                  color: item.connected ? colors.foreground : colors.textTertiary,
+                  fontFamily: theme.font.medium,
+                },
               ]}
             >
               {item.label}
             </Text>
-            <View
-              style={[
-                styles.dot,
-                {
-                  backgroundColor: item.connected
-                    ? colors.success
-                    : colors.textTertiary,
-                },
-              ]}
-            />
           </View>
         ))}
       </View>
@@ -73,34 +82,56 @@ export function StatusPanel({
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 12,
+    borderRadius: 24,
     borderWidth: 1,
-    padding: 14,
-    marginBottom: 12,
+    padding: 18,
+    marginBottom: 18,
+  },
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 14,
   },
   title: {
-    fontSize: 12,
-    fontFamily: "Inter_500Medium",
+    fontSize: 11,
     textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginBottom: 10,
+    letterSpacing: 1.5,
   },
-  items: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  item: {
+  livePill: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
   },
-  label: {
-    fontSize: 12,
-    fontFamily: "Inter_400Regular",
-  },
-  dot: {
+  liveDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
+  },
+  liveText: {
+    fontSize: 9,
+    letterSpacing: 1,
+  },
+  items: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  item: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
+    borderWidth: 1,
+    borderRadius: 16,
+    paddingHorizontal: 8,
+    paddingVertical: 12,
+  },
+  label: {
+    fontSize: 11,
   },
 });
