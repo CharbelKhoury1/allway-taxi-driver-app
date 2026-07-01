@@ -80,6 +80,7 @@ export function ShiftProvider({ children }: { children: React.ReactNode }) {
   const locationSubRef = useRef<Location.LocationSubscription | null>(null);
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollingInFlightRef = useRef(false);
   const channelsRef = useRef<ReturnType<typeof supabase.channel>[]>([]);
   const selfChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(
     null,
@@ -88,6 +89,10 @@ export function ShiftProvider({ children }: { children: React.ReactNode }) {
   const dispatchActionLockRef = useRef(false);
   const isOnlineRef = useRef(false);
   const driverRef = useRef(driver);
+  // Refs that always point to the latest goOnline/goOffline, used inside
+  // memoised callbacks and realtime channel handlers to avoid stale closures.
+  const goOnlineRef = useRef<() => Promise<void>>(() => Promise.resolve());
+  const goOfflineRef = useRef<() => Promise<void>>(() => Promise.resolve());
 
   useEffect(() => {
     driverRef.current = driver;
@@ -113,13 +118,14 @@ export function ShiftProvider({ children }: { children: React.ReactNode }) {
     setLastError(message);
   };
 
-
+  // Auto-resume: use goOnlineRef so we always call the latest version of
+  // goOnline regardless of when this effect was last re-run.
   useEffect(() => {
     if (!driver) return;
     (async () => {
       const wasOnline = await AsyncStorage.getItem("_wasOnline");
       if (wasOnline === "true") {
-        goOnline();
+        goOnlineRef.current();
       }
     })();
   }, [driver?.id]);
@@ -161,9 +167,9 @@ export function ShiftProvider({ children }: { children: React.ReactNode }) {
           });
 
           if (updated.online && !isOnlineRef.current) {
-            goOnline();
+            goOnlineRef.current();
           } else if (!updated.online && isOnlineRef.current) {
-            goOffline();
+            goOfflineRef.current();
           }
         },
       )
@@ -179,29 +185,31 @@ export function ShiftProvider({ children }: { children: React.ReactNode }) {
   const startGPS = async (): Promise<boolean> => {
     try {
       if (Platform.OS === "web") {
-        if (navigator.geolocation) {
-          const watchId = navigator.geolocation.watchPosition(
-            (pos) => {
-              setGpsConnected(true);
-              if (driverRef.current) {
-                supabase
-                  .from("drivers")
-                  .update({
-                    lat: pos.coords.latitude,
-                    lng: pos.coords.longitude,
-                    last_seen: new Date().toISOString(),
-                  })
-                  .eq("id", driverRef.current.id)
-                  .then(() => {});
-              }
-            },
-            () => setGpsConnected(false),
-            { enableHighAccuracy: true },
-          );
-          locationSubRef.current = {
-            remove: () => navigator.geolocation.clearWatch(watchId),
-          } as Location.LocationSubscription;
+        if (!navigator.geolocation) {
+          setGpsConnected(false);
+          return false;
         }
+        const watchId = navigator.geolocation.watchPosition(
+          (pos) => {
+            setGpsConnected(true);
+            if (driverRef.current) {
+              supabase
+                .from("drivers")
+                .update({
+                  lat: pos.coords.latitude,
+                  lng: pos.coords.longitude,
+                  last_seen: new Date().toISOString(),
+                })
+                .eq("id", driverRef.current.id)
+                .then(() => {});
+            }
+          },
+          () => setGpsConnected(false),
+          { enableHighAccuracy: true },
+        );
+        locationSubRef.current = {
+          remove: () => navigator.geolocation.clearWatch(watchId),
+        } as Location.LocationSubscription;
         return true;
       }
 
@@ -277,6 +285,8 @@ export function ShiftProvider({ children }: { children: React.ReactNode }) {
     if (pollingRef.current) clearInterval(pollingRef.current);
     pollingRef.current = setInterval(async () => {
       if (!driverRef.current || !isOnlineRef.current) return;
+      if (pollingInFlightRef.current) return;
+      pollingInFlightRef.current = true;
       const { data } = await supabase
         .from("trips")
         .select("*, customers(full_name, phone, status)")
@@ -284,22 +294,26 @@ export function ShiftProvider({ children }: { children: React.ReactNode }) {
           `and(status.eq.pending,driver_id.is.null),and(status.eq.dispatching,driver_id.eq.${driverRef.current.id})`,
         );
 
-      if (!data) return;
+      try {
+        if (!data) return;
 
-      const pending = data.filter(
-        (t: Trip) => t.status === "pending" && !t.driver_id,
-      );
-      setAvailableTrips(pending);
+        const pending = data.filter(
+          (t: Trip) => t.status === "pending" && !t.driver_id,
+        );
+        setAvailableTrips(pending);
 
-      const dispatch = data.find(
-        (t: Trip) =>
-          t.status === "dispatching" &&
-          t.driver_id === driverRef.current?.id,
-      );
-      if (dispatch && dispatch.id !== pendingDispatchIdRef.current) {
-        pendingDispatchIdRef.current = dispatch.id;
-        setPendingDispatch(dispatch);
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        const dispatch = data.find(
+          (t: Trip) =>
+            t.status === "dispatching" &&
+            t.driver_id === driverRef.current?.id,
+        );
+        if (dispatch && dispatch.id !== pendingDispatchIdRef.current) {
+          pendingDispatchIdRef.current = dispatch.id;
+          setPendingDispatch(dispatch);
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        }
+      } finally {
+        pollingInFlightRef.current = false;
       }
     }, 15000);
   };
@@ -518,9 +532,11 @@ export function ShiftProvider({ children }: { children: React.ReactNode }) {
       .eq("id", driver.id);
     if (error) {
       setError("Failed to go offline. Please retry.");
-      return;
     }
 
+    // Always update local state. GPS/channels are already torn down above,
+    // so leaving isOnline=true or _wasOnline='true' would cause an invalid
+    // broken state on the next cold start.
     setIsOnline(false);
     setShiftStartTime(null);
     setAvailableTrips([]);
@@ -530,6 +546,11 @@ export function ShiftProvider({ children }: { children: React.ReactNode }) {
     await AsyncStorage.setItem("_wasOnline", "false");
     updateDriver({ online: false, status: "offline" });
   };
+
+  // Keep refs current so that memoised callbacks and realtime handlers always
+  // invoke the latest goOnline/goOffline without stale driver closures.
+  goOnlineRef.current = goOnline;
+  goOfflineRef.current = goOffline;
 
   const acceptBroadcastTrip = async (tripId: string): Promise<boolean> => {
     if (!driver) return false;
@@ -595,7 +616,13 @@ export function ShiftProvider({ children }: { children: React.ReactNode }) {
         setError("Dispatch accepted but driver status was not updated.");
       }
 
-      setActiveTrip(pendingDispatch);
+      // Re-fetch with fresh customer data so the ActiveTripCard shows current contact info.
+      const { data: freshTrip } = await supabase
+        .from("trips")
+        .select("*, customers(full_name, phone, status)")
+        .eq("id", pendingDispatch.id)
+        .single();
+      setActiveTrip(freshTrip ?? pendingDispatch);
       setPendingDispatch(null);
       pendingDispatchIdRef.current = null;
       setAvailableTrips([]);

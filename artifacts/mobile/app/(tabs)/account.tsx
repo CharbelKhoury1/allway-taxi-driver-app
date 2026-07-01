@@ -15,6 +15,8 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
 import { AppButton } from "@/components/ui/AppButton";
 import { AppCard } from "@/components/ui/AppCard";
 import { StateView } from "@/components/ui/StateView";
@@ -53,11 +55,19 @@ export default function AccountScreen() {
   const [pinLoading, setPinLoading] = useState(false);
   const [earningsLoading, setEarningsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [navPreference, setNavPreference] = useState("google"); // google, apple, waze
+  const [navPreference, setNavPreference] = useState("google");
 
   useEffect(() => {
     fetchEarnings();
+    AsyncStorage.getItem("navPreference").then((saved) => {
+      if (saved) setNavPreference(saved);
+    });
   }, [driver?.id]);
+
+  const handleNavPreference = (id: string) => {
+    setNavPreference(id);
+    AsyncStorage.setItem("navPreference", id);
+  };
 
   const fetchEarnings = async (isManualRefresh = false) => {
     if (!driver) return;
@@ -117,13 +127,28 @@ export default function AccountScreen() {
       setPinError("Current PIN must be 4-6 digits.");
       return;
     }
-    if (newPin.length < 4 || newPin.length > 6) {
+    if (!/^\d{4,6}$/.test(newPin)) {
       setPinError("New PIN must be 4-6 digits.");
       return;
     }
 
     setPinLoading(true);
     setPinError("");
+
+    // Verify the current PIN matches before allowing the update.
+    const { data: verified, error: verifyError } = await supabase
+      .from("drivers")
+      .select("id")
+      .eq("id", driver.id)
+      .eq("pwa_pin", currentPin)
+      .single();
+
+    if (verifyError || !verified) {
+      setPinLoading(false);
+      setPinError("Current PIN is incorrect.");
+      return;
+    }
+
     const { error } = await supabase
       .from("drivers")
       .update({ pwa_pin: newPin })
@@ -350,7 +375,7 @@ export default function AccountScreen() {
             ].map((opt) => (
               <Pressable
                 key={opt.id}
-                onPress={() => setNavPreference(opt.id)}
+                onPress={() => handleNavPreference(opt.id)}
                 style={[
                   styles.navOption,
                   { 

@@ -1,6 +1,7 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Feather } from "@expo/vector-icons";
 import { SymbolView } from "expo-symbols";
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Linking,
   Platform,
@@ -35,6 +36,13 @@ export function ActiveTripCard({ trip, onComplete }: ActiveTripCardProps) {
   const colors = useColors();
   const customerName = trip.customers?.full_name || "GUEST PASSENGER";
   const customerPhone = trip.customers?.phone || "";
+  const [navPreference, setNavPreference] = useState("google");
+
+  useEffect(() => {
+    AsyncStorage.getItem("navPreference").then((saved) => {
+      if (saved) setNavPreference(saved);
+    });
+  }, []);
 
   // Breathing pulse on the badge
   const badgePulse = useSharedValue(0);
@@ -47,7 +55,13 @@ export function ActiveTripCard({ trip, onComplete }: ActiveTripCardProps) {
 
   const openMaps = () => {
     const encoded = encodeURIComponent(trip.pickup_address);
-    Linking.openURL(`https://maps.google.com/maps/search/?api=1&query=${encoded}`);
+    if (navPreference === "waze") {
+      Linking.openURL(`https://waze.com/ul?q=${encoded}&navigate=yes`);
+    } else if (navPreference === "apple") {
+      Linking.openURL(`maps://maps.apple.com/?q=${encoded}`);
+    } else {
+      Linking.openURL(`https://maps.google.com/maps/search/?api=1&query=${encoded}`);
+    }
   };
 
   const callCustomer = () => {

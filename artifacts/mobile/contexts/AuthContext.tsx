@@ -2,6 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { createContext, useContext, useEffect, useState } from "react";
 
 import { maskDriverSessionPin, normalizePhone, stripPhoneToDigits } from "@/lib/auth";
+import { supabase } from "@/lib/supabase";
 import type { Driver } from "@/types";
 
 interface AuthContextType {
@@ -50,12 +51,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return "Enter a valid phone number and PIN.";
       }
 
-      const { createClient } = await import("@supabase/supabase-js");
-      const url = process.env.EXPO_PUBLIC_SUPABASE_URL || "";
-      const key = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || "";
-      const client = createClient(url, key);
-
-      const { data, error } = await client
+      // Query by PIN only to find candidates, then match phone client-side.
+      // We intentionally use the shared singleton client (not a new one per login).
+      const { data, error } = await supabase
         .from("drivers")
         .select("*")
         .eq("pwa_pin", pin)
@@ -74,12 +72,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return "Incorrect phone number or PIN.";
       }
 
-      const driverData = matched as Driver;
+      // Mask the PIN before storing in React state and on disk.
+      const driverData = maskDriverSessionPin(matched as Driver);
       setDriver(driverData);
-      await AsyncStorage.setItem(
-        "driver_session",
-        JSON.stringify(maskDriverSessionPin(driverData)),
-      );
+      await AsyncStorage.setItem("driver_session", JSON.stringify(driverData));
       await AsyncStorage.setItem("_wasOnline", "false");
       return null;
     } catch {

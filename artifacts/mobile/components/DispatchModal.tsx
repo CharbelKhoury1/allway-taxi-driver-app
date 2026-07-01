@@ -44,8 +44,14 @@ export function DispatchModal({
   const colors = useColors();
   const [secondsLeft, setSecondsLeft] = useState(COUNTDOWN_SECONDS);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const isProcessingRef = useRef(isProcessing);
   const progress = useSharedValue(1);
   const pulse = useSharedValue(1);
+
+  // Keep the ref in sync so the interval closure always reads the latest value.
+  useEffect(() => {
+    isProcessingRef.current = isProcessing;
+  }, [isProcessing]);
 
   useEffect(() => {
     if (!trip) {
@@ -68,10 +74,10 @@ export function DispatchModal({
       setSecondsLeft((prev) => {
         if (prev <= 1) {
           if (timerRef.current) clearInterval(timerRef.current);
-          if (!isProcessing) onDecline();
+          if (!isProcessingRef.current) onDecline();
           return 0;
         }
-        if (prev <= 15) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        if (prev === 15) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         return prev - 1;
       });
     }, 1000);
