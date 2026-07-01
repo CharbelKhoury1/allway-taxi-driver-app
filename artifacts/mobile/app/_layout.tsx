@@ -7,14 +7,17 @@ import {
 import {
   useFonts,
 } from "expo-font";
+import * as Notifications from "expo-notifications";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
-import { ActivityIndicator, View } from "react-native";
+import { ActivityIndicator, AppState, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+
+import { setupNotifications } from "@/lib/notifications";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
@@ -80,6 +83,18 @@ export default function RootLayout() {
       SplashScreen.hideAsync();
     }
   }, [fontsLoaded, fontError]);
+
+  useEffect(() => {
+    setupNotifications();
+
+    // When user taps a dispatch notification, bring the app to foreground.
+    // The ShiftContext already shows the dispatch modal based on DB state,
+    // so just ensuring the app is active is sufficient.
+    const sub = Notifications.addNotificationResponseReceivedListener(() => {
+      AppState.currentState; // access to signal intent; router handles the rest
+    });
+    return () => sub.remove();
+  }, []);
 
   if (!fontsLoaded && !fontError) return null;
 

@@ -1,6 +1,10 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
 import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
+import {
+  dismissDispatchNotification,
+  showDispatchNotification,
+} from "@/lib/notifications";
 import * as Location from "expo-location";
 import React, {
   createContext,
@@ -311,6 +315,10 @@ export function ShiftProvider({ children }: { children: React.ReactNode }) {
           pendingDispatchIdRef.current = dispatch.id;
           setPendingDispatch(dispatch);
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+          showDispatchNotification(
+            dispatch.customers?.full_name ?? "Guest",
+            dispatch.pickup_address,
+          );
         }
       } finally {
         pollingInFlightRef.current = false;
@@ -343,17 +351,24 @@ export function ShiftProvider({ children }: { children: React.ReactNode }) {
 
           if (trip.status === "dispatching") {
             if (trip.id === pendingDispatchIdRef.current) return;
+            // Reserve the slot BEFORE the async fetch to prevent duplicate events
+            // from both passing the dedup check during the await gap.
+            pendingDispatchIdRef.current = trip.id;
             const { data } = await supabase
               .from("trips")
               .select("*, customers(full_name, phone, status)")
               .eq("id", trip.id)
               .single();
             if (data) {
-              pendingDispatchIdRef.current = data.id;
               setPendingDispatch(data);
-              Haptics.notificationAsync(
-                Haptics.NotificationFeedbackType.Warning,
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+              showDispatchNotification(
+                data.customers?.full_name ?? "Guest",
+                data.pickup_address,
               );
+            } else {
+              // Fetch failed — release the slot so a retry can succeed
+              pendingDispatchIdRef.current = null;
             }
           } else if (
             trip.status === "accepted" ||
@@ -543,6 +558,7 @@ export function ShiftProvider({ children }: { children: React.ReactNode }) {
     setActiveTrip(null);
     setPendingDispatch(null);
     pendingDispatchIdRef.current = null;
+    dismissDispatchNotification();
     await AsyncStorage.setItem("_wasOnline", "false");
     updateDriver({ online: false, status: "offline" });
   };
@@ -628,6 +644,7 @@ export function ShiftProvider({ children }: { children: React.ReactNode }) {
       setAvailableTrips([]);
       updateDriver({ status: "on_trip" });
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      dismissDispatchNotification();
     } finally {
       dispatchActionLockRef.current = false;
       setDispatchActionLoading(false);
@@ -665,6 +682,7 @@ export function ShiftProvider({ children }: { children: React.ReactNode }) {
       setPendingDispatch(null);
       pendingDispatchIdRef.current = null;
       updateDriver({ status: "available" });
+      dismissDispatchNotification();
     } finally {
       dispatchActionLockRef.current = false;
       setDispatchActionLoading(false);

@@ -46,6 +46,14 @@
         {
           "locationAlwaysAndWhenInUsePermission": "Allway Taxi needs your location to track your position during shifts."
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#F5B800",
+          "sounds": []
+        }
       ]
     ],
     "experiments": {
