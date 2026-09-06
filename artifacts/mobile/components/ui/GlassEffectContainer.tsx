@@ -1,50 +1,39 @@
-import { BlurView } from "expo-blur";
 import React from "react";
-import { Platform, StyleSheet, View, ViewStyle } from "react-native";
-import { theme } from "@/constants/theme";
+import { View, type ViewStyle } from "react-native";
+
+import { GlassContainer, isGlassAvailable } from "@/lib/glass";
 
 interface GlassEffectContainerProps {
   children: React.ReactNode;
-  style?: ViewStyle;
+  style?: ViewStyle | ViewStyle[];
+  /**
+   * Distance at which sibling glass elements begin to merge into each other.
+   * Larger values make them blend from further apart.
+   */
+  spacing?: number;
 }
 
 /**
- * A container that provides a shared glass background for its children on iOS.
- * Simulates the SwiftUI GlassEffectContainer for connected glass elements.
+ * Groups sibling glass elements so they refract as one material and visually
+ * merge when they come close — the behaviour Apple calls a glass effect
+ * container.
+ *
+ * This only does something for direct glass children (`GlassSurface`), and only
+ * on an iOS 26 build. Everywhere else it is a plain layout `View`, so the
+ * children fall back to their own frosted/solid rendering.
  */
-export function GlassEffectContainer({ children, style }: GlassEffectContainerProps) {
-  if (Platform.OS !== "ios") {
-    return <View style={[styles.fallback, style]}>{children}</View>;
+export function GlassEffectContainer({
+  children,
+  style,
+  spacing = 20,
+}: GlassEffectContainerProps) {
+  if (isGlassAvailable && GlassContainer) {
+    return (
+      <GlassContainer spacing={spacing} style={style}>
+        {children}
+      </GlassContainer>
+    );
   }
 
-  return (
-    <View style={[styles.container, style]}>
-      <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
-      <View style={styles.content}>
-        {children}
-      </View>
-    </View>
-  );
+  return <View style={style}>{children}</View>;
 }
-
-const styles = StyleSheet.create({
-  container: {
-    borderRadius: 24,
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.1)",
-    backgroundColor: "rgba(255, 255, 255, 0.05)",
-    ...theme.shadows.soft,
-  },
-  fallback: {
-    borderRadius: 24,
-    backgroundColor: "rgba(255, 255, 255, 0.05)",
-    padding: 12,
-  },
-  content: {
-    flexDirection: "row",
-    gap: 12,
-    padding: 12,
-    alignItems: "center",
-  },
-});

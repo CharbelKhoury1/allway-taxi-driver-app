@@ -1,14 +1,12 @@
 import React, { useEffect, useState } from "react";
 import {
   FlatList,
-  Platform,
   Pressable,
   RefreshControl,
   StyleSheet,
   Text,
   View,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 
 import { AppCard } from "@/components/ui/AppCard";
@@ -18,6 +16,7 @@ import { TripRouteBlock } from "@/components/ui/TripRouteBlock";
 import { theme } from "@/constants/theme";
 import { useAuth } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { useGlassScrollInsets } from "@/hooks/useGlassScrollInsets";
 import { formatCurrency, formatDistanceKm } from "@/lib/format";
 import { supabase } from "@/lib/supabase";
 import type { Trip } from "@/types";
@@ -53,7 +52,6 @@ function getStatusColor(status: string, colors: ReturnType<typeof useColors>) {
 
 export default function HistoryScreen() {
   const colors = useColors();
-  const insets = useSafeAreaInsets();
   const { driver } = useAuth();
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
@@ -101,13 +99,13 @@ export default function HistoryScreen() {
     { label: "Cancelled", value: "cancelled" },
   ];
 
-  const webTopPadding = Platform.OS === "web" ? 67 : 0;
+  const scrollInsets = useGlassScrollInsets();
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <GlassHeader />
       
-      <View style={[styles.header, { paddingTop: insets.top + 110 + webTopPadding }]}>
+      <View style={[styles.header, { paddingTop: scrollInsets.headerPaddingTop }]}>
         <Text style={[styles.title, { color: colors.foreground, fontFamily: theme.font.displayBold }]}>Activity Journal</Text>
 
         <View style={styles.summaryRow}>
@@ -180,7 +178,11 @@ export default function HistoryScreen() {
         <FlatList
           data={filteredTrips}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 120 }}
+          contentContainerStyle={{
+            paddingHorizontal: 20,
+            paddingBottom: scrollInsets.paddingBottom,
+          }}
+          contentInsetAdjustmentBehavior={scrollInsets.contentInsetAdjustmentBehavior}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={() => fetchTrips(true)} tintColor={colors.primary} />
           }

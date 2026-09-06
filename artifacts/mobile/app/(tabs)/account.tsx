@@ -2,7 +2,6 @@ import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -12,7 +11,6 @@ import {
   View,
   Image,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -24,9 +22,9 @@ import { theme } from "@/constants/theme";
 import { useAuth } from "@/contexts/AuthContext";
 import { useShift } from "@/contexts/ShiftContext";
 import { useColors } from "@/hooks/useColors";
+import { useGlassScrollInsets } from "@/hooks/useGlassScrollInsets";
 import { supabase } from "@/lib/supabase";
 import { GlassHeader } from "@/components/GlassHeader";
-import { GlassEffectContainer } from "@/components/ui/GlassEffectContainer";
 
 interface EarningsPeriod {
   amount: number;
@@ -35,7 +33,6 @@ interface EarningsPeriod {
 
 export default function AccountScreen() {
   const colors = useColors();
-  const insets = useSafeAreaInsets();
   const { driver, logout } = useAuth();
   const { isOnline, goOffline } = useShift();
   const [earnings, setEarnings] = useState<{
@@ -181,7 +178,7 @@ export default function AccountScreen() {
         .slice(0, 2)
     : "DR";
 
-  const webTopPadding = Platform.OS === "web" ? 67 : 0;
+  const scrollInsets = useGlassScrollInsets();
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
@@ -191,8 +188,12 @@ export default function AccountScreen() {
         style={styles.screen}
         contentContainerStyle={[
           styles.content,
-          { paddingTop: insets.top + 110 + webTopPadding, paddingBottom: 150 },
+          {
+            paddingTop: scrollInsets.paddingTop,
+            paddingBottom: scrollInsets.paddingBottom,
+          },
         ]}
+        contentInsetAdjustmentBehavior={scrollInsets.contentInsetAdjustmentBehavior}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={() => fetchEarnings(true)} tintColor={colors.primary} />

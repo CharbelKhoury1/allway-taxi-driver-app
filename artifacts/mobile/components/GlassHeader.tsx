@@ -1,22 +1,17 @@
-import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import React from "react";
-import {
-  Image,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { Image, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import { SymbolView } from "expo-symbols";
 
+import { GlassSurface } from "@/components/ui/GlassSurface";
+import { GlassEffectContainer } from "@/components/ui/GlassEffectContainer";
 import { useColors } from "@/hooks/useColors";
 import { theme } from "@/constants/theme";
 import { useAuth } from "@/contexts/AuthContext";
 import { useShift } from "@/contexts/ShiftContext";
+import { isGlassAvailable } from "@/lib/glass";
 
 export function GlassHeader() {
   const colors = useColors();
@@ -26,21 +21,20 @@ export function GlassHeader() {
 
   return (
     <View style={[styles.wrapper, { paddingTop: insets.top }]}>
-      <BlurView
-        intensity={50}
-        tint="dark"
-        style={[
-          styles.container,
-          { borderColor: "rgba(255, 255, 255, 0.09)" },
-        ]}
-      >
-        {/* Top-edge shimmer line */}
-        <LinearGradient
-          colors={["rgba(255,255,255,0.12)", "rgba(255,255,255,0)"]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={styles.shimmerLine}
-        />
+      <GlassSurface style={styles.container} glassEffectStyle="regular">
+        {/*
+          A painted highlight along the top edge. Real Liquid Glass renders its
+          own specular edge, so drawing this over it just muddies the material —
+          it exists only for the frosted fallback.
+        */}
+        {!isGlassAvailable && (
+          <LinearGradient
+            colors={["rgba(255,255,255,0.12)", "rgba(255,255,255,0)"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.shimmerLine}
+          />
+        )}
 
         <View style={styles.content}>
           {/* ── LEFT ── Avatar + Name */}
@@ -56,10 +50,7 @@ export function GlassHeader() {
               ]}
             >
               {driver?.photo_url ? (
-                <Image
-                  source={{ uri: driver.photo_url }}
-                  style={styles.avatar}
-                />
+                <Image source={{ uri: driver.photo_url }} style={styles.avatar} />
               ) : (
                 <Image
                   source={require("@/assets/images/logo.png")}
@@ -67,7 +58,6 @@ export function GlassHeader() {
                   resizeMode="contain"
                 />
               )}
-              {/* Online indicator dot */}
               <View
                 style={[
                   styles.onlineDot,
@@ -111,13 +101,13 @@ export function GlassHeader() {
             </View>
           </View>
 
-          {/* ── RIGHT ── Trips pill + Bell */}
-          <View style={styles.right}>
-            {/* Trips count pill */}
-            <View style={styles.statsPill}>
-              {Platform.OS === "ios" && (
-                <BlurView intensity={28} tint="dark" style={StyleSheet.absoluteFill} />
-              )}
+          {/*
+            ── RIGHT ── Trips pill + Bell.
+            Grouped in a glass container so the two surfaces refract as one and
+            merge at their facing edges instead of reading as two flat chips.
+          */}
+          <GlassEffectContainer style={styles.right} spacing={16}>
+            <GlassSurface style={styles.statsPill} glassEffectStyle="clear">
               <View style={styles.statsInner}>
                 {Platform.OS === "ios" ? (
                   <SymbolView
@@ -145,13 +135,13 @@ export function GlassHeader() {
                   TRIPS
                 </Text>
               </View>
-            </View>
+            </GlassSurface>
 
-            {/* Bell button */}
-            <View style={styles.bellWrapper}>
-              {Platform.OS === "ios" && (
-                <BlurView intensity={28} tint="dark" style={StyleSheet.absoluteFill} />
-              )}
+            <GlassSurface
+              style={styles.bellWrapper}
+              glassEffectStyle="clear"
+              isInteractive
+            >
               <Pressable
                 style={({ pressed }) => [
                   styles.bellButton,
@@ -164,10 +154,10 @@ export function GlassHeader() {
                   <Feather name="bell" size={15} color={colors.foreground} />
                 )}
               </Pressable>
-            </View>
-          </View>
+            </GlassSurface>
+          </GlassEffectContainer>
         </View>
-      </BlurView>
+      </GlassSurface>
     </View>
   );
 }
@@ -186,7 +176,6 @@ const styles = StyleSheet.create({
     marginTop: 10,
     borderRadius: 24,
     overflow: "hidden",
-    borderWidth: 1,
     ...theme.shadows.soft,
   },
   shimmerLine: {
@@ -261,9 +250,6 @@ const styles = StyleSheet.create({
   statsPill: {
     borderRadius: 14,
     overflow: "hidden",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.07)",
-    backgroundColor: Platform.OS !== "ios" ? "rgba(255,255,255,0.04)" : "transparent",
   },
   statsInner: {
     flexDirection: "row",
@@ -286,9 +272,6 @@ const styles = StyleSheet.create({
     height: 38,
     borderRadius: 13,
     overflow: "hidden",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.07)",
-    backgroundColor: Platform.OS !== "ios" ? "rgba(255,255,255,0.04)" : "transparent",
   },
   bellButton: {
     width: "100%",

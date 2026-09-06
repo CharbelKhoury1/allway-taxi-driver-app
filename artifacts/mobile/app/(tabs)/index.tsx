@@ -17,7 +17,6 @@ import Animated, {
   withTiming,
   interpolate,
 } from "react-native-reanimated";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AppButton } from "@/components/ui/AppButton";
 import { AppCard } from "@/components/ui/AppCard";
@@ -32,6 +31,7 @@ import { theme } from "@/constants/theme";
 import { useAuth } from "@/contexts/AuthContext";
 import { useShift } from "@/contexts/ShiftContext";
 import { useColors } from "@/hooks/useColors";
+import { useGlassScrollInsets } from "@/hooks/useGlassScrollInsets";
 
 function formatShiftTime(startTime: number | null): string {
   if (!startTime) return "00:00:00";
@@ -97,7 +97,6 @@ function RadarSweep() {
 
 export default function HomeScreen() {
   const colors = useColors();
-  const insets = useSafeAreaInsets();
   const { driver } = useAuth();
   const {
     isOnline,
@@ -140,7 +139,7 @@ export default function HomeScreen() {
     else goOnline();
   };
 
-  const webTopPadding = Platform.OS === "web" ? 67 : 0;
+  const scrollInsets = useGlassScrollInsets();
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
@@ -150,8 +149,12 @@ export default function HomeScreen() {
         style={styles.scroll}
         contentContainerStyle={[
           styles.content,
-          { paddingTop: insets.top + 110 + webTopPadding, paddingBottom: 150 },
+          {
+            paddingTop: scrollInsets.paddingTop,
+            paddingBottom: scrollInsets.paddingBottom,
+          },
         ]}
+        contentInsetAdjustmentBehavior={scrollInsets.contentInsetAdjustmentBehavior}
         showsVerticalScrollIndicator={false}
       >
         <AppCard
