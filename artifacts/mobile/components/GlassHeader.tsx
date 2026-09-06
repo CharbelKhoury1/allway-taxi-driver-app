@@ -21,143 +21,152 @@ export function GlassHeader() {
 
   return (
     <View style={[styles.wrapper, { paddingTop: insets.top }]}>
-      <GlassSurface style={styles.container} glassEffectStyle="regular">
-        {/*
-          A painted highlight along the top edge. Real Liquid Glass renders its
-          own specular edge, so drawing this over it just muddies the material —
-          it exists only for the frosted fallback.
-        */}
-        {!isGlassAvailable && (
-          <LinearGradient
-            colors={["rgba(255,255,255,0.12)", "rgba(255,255,255,0)"]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.shimmerLine}
-          />
-        )}
+      {/*
+        The shadow lives on its own view. Shadows and `overflow: "hidden"` on a
+        single node cancel out on iOS — clipsToBounds clips the layer shadow —
+        so the surface below keeps the clipping and this wrapper keeps the
+        shadow. No backgroundColor here: an opaque fill directly behind the
+        surface is what the glass would end up refracting instead of the page.
+      */}
+      <View style={styles.shadowWrap}>
+        <GlassSurface style={styles.container} glassEffectStyle="regular">
+          {/*
+            A painted highlight along the top edge. Real Liquid Glass renders its
+            own specular edge, so drawing this over it just muddies the material —
+            it exists only for the frosted fallback.
+          */}
+          {!isGlassAvailable && (
+            <LinearGradient
+              colors={["rgba(255,255,255,0.12)", "rgba(255,255,255,0)"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.shimmerLine}
+            />
+          )}
 
-        <View style={styles.content}>
-          {/* ── LEFT ── Avatar + Name */}
-          <View style={styles.left}>
-            <View
-              style={[
-                styles.avatarContainer,
-                {
-                  borderColor: isOnline
-                    ? "rgba(93, 202, 165, 0.4)"
-                    : "rgba(255, 255, 255, 0.1)",
-                },
-              ]}
-            >
-              {driver?.photo_url ? (
-                <Image source={{ uri: driver.photo_url }} style={styles.avatar} />
-              ) : (
-                <Image
-                  source={require("@/assets/images/logo.png")}
-                  style={styles.logoAvatar}
-                  resizeMode="contain"
-                />
-              )}
+          <View style={styles.content}>
+            {/* ── LEFT ── Avatar + Name */}
+            <View style={styles.left}>
               <View
                 style={[
-                  styles.onlineDot,
+                  styles.avatarContainer,
                   {
-                    backgroundColor: isOnline
-                      ? colors.success
-                      : "rgba(255,255,255,0.15)",
-                    borderColor: "#030303",
+                    borderColor: isOnline
+                      ? "rgba(93, 202, 165, 0.4)"
+                      : "rgba(255, 255, 255, 0.1)",
                   },
                 ]}
-              />
-            </View>
-
-            <View style={styles.driverInfo}>
-              <Text
-                style={[
-                  styles.title,
-                  { color: colors.foreground, fontFamily: theme.font.displayBold },
-                ]}
               >
-                {driver?.full_name?.split(" ")[0] || "ELITE DRIVER"}
-              </Text>
-              <View style={styles.row}>
-                {Platform.OS === "ios" ? (
-                  <SymbolView name="star.fill" size={10} tintColor={colors.primary} />
+                {driver?.photo_url ? (
+                  <Image source={{ uri: driver.photo_url }} style={styles.avatar} />
                 ) : (
-                  <Feather name="star" size={10} color={colors.primary} />
+                  <Image
+                    source={require("@/assets/images/logo.png")}
+                    style={styles.logoAvatar}
+                    resizeMode="contain"
+                  />
                 )}
-                <Text
+                <View
                   style={[
-                    styles.subtitle,
+                    styles.onlineDot,
                     {
-                      color: colors.textTertiary,
-                      fontFamily: theme.font.displayBold,
+                      backgroundColor: isOnline
+                        ? colors.success
+                        : "rgba(255,255,255,0.15)",
+                      borderColor: "#030303",
                     },
                   ]}
-                >
-                  {driver?.rating?.toFixed(2) || "4.98"} · ALLWAY Hub
-                </Text>
+                />
               </View>
-            </View>
-          </View>
 
-          {/*
-            ── RIGHT ── Trips pill + Bell.
-            Grouped in a glass container so the two surfaces refract as one and
-            merge at their facing edges instead of reading as two flat chips.
-          */}
-          <GlassEffectContainer style={styles.right} spacing={16}>
-            <GlassSurface style={styles.statsPill} glassEffectStyle="clear">
-              <View style={styles.statsInner}>
-                {Platform.OS === "ios" ? (
-                  <SymbolView
-                    name="chart.line.uptrend.xyaxis"
-                    size={11}
-                    tintColor={colors.success}
-                  />
-                ) : (
-                  <Feather name="trending-up" size={11} color={colors.success} />
-                )}
+              <View style={styles.driverInfo}>
                 <Text
                   style={[
-                    styles.statsText,
+                    styles.title,
                     { color: colors.foreground, fontFamily: theme.font.displayBold },
                   ]}
                 >
-                  {driver?.total_trips ?? 0}
+                  {driver?.full_name?.split(" ")[0] || "ELITE DRIVER"}
                 </Text>
-                <Text
-                  style={[
-                    styles.statsLabel,
-                    { color: colors.textTertiary, fontFamily: theme.font.medium },
+                <View style={styles.row}>
+                  {Platform.OS === "ios" ? (
+                    <SymbolView name="star.fill" size={10} tintColor={colors.primary} />
+                  ) : (
+                    <Feather name="star" size={10} color={colors.primary} />
+                  )}
+                  <Text
+                    style={[
+                      styles.subtitle,
+                      {
+                        color: colors.textTertiary,
+                        fontFamily: theme.font.displayBold,
+                      },
+                    ]}
+                  >
+                    {driver?.rating?.toFixed(2) || "4.98"} · ALLWAY Hub
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            {/*
+              ── RIGHT ── Trips pill + Bell.
+              Grouped in a glass container so the two surfaces refract as one and
+              merge at their facing edges instead of reading as two flat chips.
+            */}
+            <GlassEffectContainer style={styles.right} spacing={16}>
+              <GlassSurface style={styles.statsPill} glassEffectStyle="clear">
+                <View style={styles.statsInner}>
+                  {Platform.OS === "ios" ? (
+                    <SymbolView
+                      name="chart.line.uptrend.xyaxis"
+                      size={11}
+                      tintColor={colors.success}
+                    />
+                  ) : (
+                    <Feather name="trending-up" size={11} color={colors.success} />
+                  )}
+                  <Text
+                    style={[
+                      styles.statsText,
+                      { color: colors.foreground, fontFamily: theme.font.displayBold },
+                    ]}
+                  >
+                    {driver?.total_trips ?? 0}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.statsLabel,
+                      { color: colors.textTertiary, fontFamily: theme.font.medium },
+                    ]}
+                  >
+                    TRIPS
+                  </Text>
+                </View>
+              </GlassSurface>
+
+              <GlassSurface
+                style={styles.bellWrapper}
+                glassEffectStyle="clear"
+                isInteractive
+              >
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.bellButton,
+                    { opacity: pressed ? 0.7 : 1 },
                   ]}
                 >
-                  TRIPS
-                </Text>
-              </View>
-            </GlassSurface>
-
-            <GlassSurface
-              style={styles.bellWrapper}
-              glassEffectStyle="clear"
-              isInteractive
-            >
-              <Pressable
-                style={({ pressed }) => [
-                  styles.bellButton,
-                  { opacity: pressed ? 0.7 : 1 },
-                ]}
-              >
-                {Platform.OS === "ios" ? (
-                  <SymbolView name="bell.fill" size={15} tintColor={colors.foreground} />
-                ) : (
-                  <Feather name="bell" size={15} color={colors.foreground} />
-                )}
-              </Pressable>
-            </GlassSurface>
-          </GlassEffectContainer>
-        </View>
-      </GlassSurface>
+                  {Platform.OS === "ios" ? (
+                    <SymbolView name="bell.fill" size={15} tintColor={colors.foreground} />
+                  ) : (
+                    <Feather name="bell" size={15} color={colors.foreground} />
+                  )}
+                </Pressable>
+              </GlassSurface>
+            </GlassEffectContainer>
+          </View>
+        </GlassSurface>
+      </View>
     </View>
   );
 }
@@ -170,13 +179,16 @@ const styles = StyleSheet.create({
     right: 0,
     zIndex: 100,
   },
-  container: {
-    height: 84,
+  shadowWrap: {
     marginHorizontal: 16,
     marginTop: 10,
     borderRadius: 24,
-    overflow: "hidden",
     ...theme.shadows.soft,
+  },
+  container: {
+    height: 84,
+    borderRadius: 24,
+    overflow: "hidden",
   },
   shimmerLine: {
     position: "absolute",
